@@ -19,7 +19,9 @@
       "PowerShell($xml = Get-Content \"samples\\\\Death Guard 2k BB without Mortarion.ros\" -Raw -Encoding UTF8; $i = $xml.IndexOf\\(\"Revolting Regeneration\"\\); $xml.Substring\\($i - 700, 900\\))",
       "PowerShell($xml = Get-Content \"samples\\\\Death Guard 2k BB without Mortarion.ros\" -Raw -Encoding UTF8; $i = $xml.IndexOf\\(\"63l11gk\"\\); $xml.Substring\\($i - 30, 450\\); \"\"; \"--- root element ---\"; $xml.Substring\\(0, 420\\); \"\"; \"--- group attr usage count ---\"; \\([regex]::Matches\\($xml, 'group=\"'\\)\\).Count)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx tsc --noEmit; if \\($?\\) { npm run lint; if \\($?\\) { npx vitest run; if \\($?\\) { npm run build } } })",
-      "PowerShell($pages = @\\(\"http://localhost:3000\", \"http://localhost:3000/c/local/setup\", \"http://localhost:3000/c/local\", \"http://localhost:3000/join/ABC123\"\\); foreach \\($p in $pages\\) { try { $r = Invoke-WebRequest -Uri $p -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\)\" } catch { \"$p -> FAILED: $\\($_.Exception.Message\\)\" } })"
+      "PowerShell($pages = @\\(\"http://localhost:3000\", \"http://localhost:3000/c/local/setup\", \"http://localhost:3000/c/local\", \"http://localhost:3000/join/ABC123\"\\); foreach \\($p in $pages\\) { try { $r = Invoke-WebRequest -Uri $p -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\)\" } catch { \"$p -> FAILED: $\\($_.Exception.Message\\)\" } })",
+      "PowerShell(gh --version)",
+      "PowerShell(gh auth status)"
     ]
   }
 }
