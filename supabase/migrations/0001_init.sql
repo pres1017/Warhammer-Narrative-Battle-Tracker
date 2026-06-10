@@ -155,9 +155,16 @@ begin
     raise exception 'Campaign name and display name are required';
   end if;
 
-  -- 6-char Crockford-ish invite code; retry on the (unlikely) collision.
+  -- 6-char Crockford-ish invite code (no pgcrypto; it lives outside our
+  -- pinned search_path on Supabase); retry on the (unlikely) collision.
   loop
-    v_code := upper(substring(replace(replace(encode(gen_random_bytes(8), 'base64'), '/', ''), '+', '') from 1 for 6));
+    v_code := (
+      select string_agg(
+        substr('ABCDEFGHJKMNPQRSTVWXYZ0123456789', (floor(random() * 32))::int + 1, 1),
+        ''
+      )
+      from generate_series(1, 6)
+    );
     begin
       insert into campaigns (name, invite_code)
       values (trim(p_name), v_code)

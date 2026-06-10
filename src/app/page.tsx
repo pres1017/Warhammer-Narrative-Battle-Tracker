@@ -58,7 +58,7 @@ export default function Home() {
         <h1 className="mt-3 text-4xl font-bold text-accent sm:text-5xl">
           Warhammer Battle Mapper
         </h1>
-        <p className="mt-4 max-w-xl text-lg text-muted">
+        <p className="mx-auto mt-4 max-w-xl text-lg text-muted">
           Generate a contested star system, gather your players, and chronicle
           every battle fought across it.
         </p>
