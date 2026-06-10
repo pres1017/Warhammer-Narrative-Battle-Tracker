@@ -23,18 +23,23 @@ interface BattleSidebarProps {
   battles: Battle[];
   system: StarSystem;
   selectedBattleId: string | null;
+  canReorder: (battle: Battle) => boolean;
   onSelectBattle: (id: string) => void;
   onAddBattle: () => void;
   onMoveBattle: (id: string, targetIndex: number) => void;
+  /** Extra header content (e.g. roster button). */
+  headerExtra?: React.ReactNode;
 }
 
 export function BattleSidebar({
   battles,
   system,
   selectedBattleId,
+  canReorder,
   onSelectBattle,
   onAddBattle,
   onMoveBattle,
+  headerExtra,
 }: BattleSidebarProps) {
   const [filter, setFilter] = useState("");
   const sorted = useMemo(() => sortBattles(battles), [battles]);
@@ -76,14 +81,17 @@ export function BattleSidebar({
   return (
     <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-surface/80">
       <div className="border-b border-border p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-base text-accent">Battle Chronicle</h2>
-          <button
-            onClick={onAddBattle}
-            className="rounded border border-accent-dim px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-accent hover:bg-surface-raised"
-          >
-            + Record Battle
-          </button>
+          <div className="flex items-center gap-1">
+            {headerExtra}
+            <button
+              onClick={onAddBattle}
+              className="rounded border border-accent-dim px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-accent hover:bg-surface-raised"
+            >
+              + Record Battle
+            </button>
+          </div>
         </div>
         <input
           type="search"
@@ -125,6 +133,7 @@ export function BattleSidebar({
                     index={sorted.findIndex((b) => b.id === battle.id)}
                     system={system}
                     selected={battle.id === selectedBattleId}
+                    canDrag={!reorderDisabled && canReorder(battle)}
                     onSelect={onSelectBattle}
                   />
                 ))}

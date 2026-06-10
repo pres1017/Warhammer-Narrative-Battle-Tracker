@@ -9,6 +9,8 @@ interface BattleListItemProps {
   index: number;
   system: StarSystem;
   selected: boolean;
+  /** Whether this user may reorder this battle (owner or moderator). */
+  canDrag: boolean;
   onSelect: (id: string) => void;
 }
 
@@ -17,6 +19,7 @@ export function BattleListItem({
   index,
   system,
   selected,
+  canDrag,
   onSelect,
 }: BattleListItemProps) {
   const {
@@ -26,7 +29,7 @@ export function BattleListItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: battle.id });
+  } = useSortable({ id: battle.id, disabled: !canDrag });
 
   const location = battle.locationId
     ? system.bodies.find((b) => b.id === battle.locationId)
@@ -49,14 +52,18 @@ export function BattleListItem({
       } ${isDragging ? "z-10 opacity-80 shadow-lg" : ""}`}
     >
       <div className="flex items-stretch">
-        <button
-          {...attributes}
-          {...listeners}
-          aria-label={`Reorder battle ${battle.title || index + 1}`}
-          className="cursor-grab touch-none px-2 font-mono text-muted/60 hover:text-accent active:cursor-grabbing"
-        >
-          ⣿
-        </button>
+        {canDrag ? (
+          <button
+            {...attributes}
+            {...listeners}
+            aria-label={`Reorder battle ${battle.title || index + 1}`}
+            className="cursor-grab touch-none px-2 font-mono text-muted/60 hover:text-accent active:cursor-grabbing"
+          >
+            ⣿
+          </button>
+        ) : (
+          <span className="px-2 font-mono text-muted/20">⣿</span>
+        )}
         <button
           onClick={() => onSelect(battle.id)}
           className="flex-1 py-2 pr-3 text-left"

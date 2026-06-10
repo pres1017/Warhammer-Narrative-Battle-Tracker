@@ -1,22 +1,18 @@
 import type { Battle, StarSystem } from "./types";
 import type { ArmyList } from "./rosters/types";
 
-/** Army list plus the original file, kept locally until Phase 3 moves it to Storage. */
-export interface StoredArmyList extends ArmyList {
-  rawBase64: string;
-}
-
 /**
- * Phase 1–2 persistence: a single local campaign in localStorage, exposed as
- * an external store for useSyncExternalStore. Replaced by Supabase in
- * Phase 3; the shape mirrors what the DB will hold.
+ * Offline persistence: the "local" campaign in localStorage, exposed as an
+ * external store for useSyncExternalStore. Cloud campaigns live in Supabase;
+ * this shape mirrors what the DB holds (army lists keep rawBase64 here
+ * instead of a Storage path).
  */
 export interface LocalCampaign {
   name: string;
   system: StarSystem | null;
   systemLocked: boolean;
   battles: Battle[];
-  armyLists: StoredArmyList[];
+  armyLists: ArmyList[];
 }
 
 const KEY = "wbm:local-campaign";

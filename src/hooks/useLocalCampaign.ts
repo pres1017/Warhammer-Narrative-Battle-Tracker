@@ -9,8 +9,11 @@ import {
   updateLocalCampaign,
 } from "@/lib/local";
 import { keyForAppend, keyForMove } from "@/lib/ordering";
-import type { NormalizedRoster, RosterFormat } from "@/lib/rosters/types";
-import type { StoredArmyList } from "@/lib/local";
+import type {
+  ArmyList,
+  NormalizedRoster,
+  RosterFormat,
+} from "@/lib/rosters/types";
 
 export interface BattleInput {
   locationId: string | null;
@@ -36,8 +39,8 @@ function applyImports(
   battleId: string,
   input: BattleInput,
   imports: ImportMap,
-  existingLists: StoredArmyList[]
-): { participants: Battle["participants"]; armyLists: StoredArmyList[] } {
+  existingLists: ArmyList[]
+): { participants: Battle["participants"]; armyLists: ArmyList[] } {
   const keptKeys = new Set(input.participants.map((p) => p.key));
   // Drop lists for removed participants or ones being replaced by a new import.
   const armyLists = existingLists.filter(
@@ -48,7 +51,7 @@ function applyImports(
   const participants = input.participants.map((p) => {
     const pending = imports[p.key];
     if (!pending) return p;
-    const list: StoredArmyList = {
+    const list: ArmyList = {
       id: crypto.randomUUID(),
       battleId,
       participantKey: p.key,

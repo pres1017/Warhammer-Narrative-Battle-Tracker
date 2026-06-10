@@ -2,49 +2,40 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  useLocalCampaign,
-  type BattleInput,
-  type ImportMap,
-} from "@/hooks/useLocalCampaign";
-import { sortBattles } from "@/lib/ordering";
+import type { BattleInput, ImportMap } from "@/hooks/useLocalCampaign";
+import { useCampaign } from "@/hooks/useCampaign";
 import { SystemMap, type SystemMapHandle } from "@/components/map/SystemMap";
 import { PlanetPanel } from "@/components/map/PlanetPanel";
 import { BattleSidebar } from "@/components/battles/BattleSidebar";
 import { BattleForm } from "@/components/battles/BattleForm";
 import { BattleDetail } from "@/components/battles/BattleDetail";
+import { RosterPanel } from "@/components/players/RosterPanel";
 
 type Modal =
   | { kind: "none" }
   | { kind: "detail"; battleId: string }
   | { kind: "edit"; battleId: string }
-  | { kind: "create"; locationId: string | null };
+  | { kind: "create"; locationId: string | null }
+  | { kind: "roster" };
 
 export default function CampaignPage() {
   const router = useRouter();
   const params = useParams<{ campaignId: string }>();
   const campaignId = params.campaignId;
 
-  const {
-    campaign,
-    hydrated,
-    addBattle,
-    updateBattle,
-    deleteBattle,
-    moveBattle,
-  } = useLocalCampaign();
+  const campaign = useCampaign(campaignId);
   const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>({ kind: "none" });
+  const [saveError, setSaveError] = useState<string | null>(null);
   const mapRef = useRef<SystemMapHandle>(null);
 
+  const { status, system, systemLocked, battles, isAdmin } = campaign;
+
   useEffect(() => {
-    if (hydrated && (!campaign.system || !campaign.systemLocked)) {
+    if (status === "ready" && (!system || !systemLocked) && isAdmin) {
       router.replace(`/c/${campaignId}/setup`);
     }
-  }, [hydrated, campaign, campaignId, router]);
-
-  const system = campaign.system;
-  const battles = useMemo(() => sortBattles(campaign.battles), [campaign]);
+  }, [status, system, systemLocked, isAdmin, campaignId, router]);
 
   const battleCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -56,11 +47,22 @@ export default function CampaignPage() {
     return counts;
   }, [battles]);
 
-  if (!system) {
+  if (campaign.status === "error") {
     return (
-      <main className="flex h-dvh items-center justify-center">
+      <main className="flex h-dvh flex-col items-center justify-center gap-3 p-8 text-center">
+        <h1 className="text-xl text-danger">Transmission Lost</h1>
+        <p className="max-w-md text-sm text-muted">{campaign.error}</p>
+      </main>
+    );
+  }
+
+  if (campaign.status === "loading" || !system) {
+    return (
+      <main className="flex h-dvh flex-col items-center justify-center gap-3">
         <p className="font-mono text-sm uppercase tracking-widest text-muted">
-          Consulting the cartographers…
+          {campaign.status === "loading"
+            ? "Consulting the cartographers…"
+            : "Awaiting the Warmaster's system survey…"}
         </p>
       </main>
     );
@@ -82,13 +84,18 @@ export default function CampaignPage() {
     }
   }
 
-  function saveBattle(input: BattleInput, imports: ImportMap) {
-    if (modal.kind === "edit") {
-      updateBattle(modal.battleId, input, imports);
-      setModal({ kind: "detail", battleId: modal.battleId });
-    } else if (modal.kind === "create") {
-      const id = addBattle(input, imports);
-      setModal({ kind: "detail", battleId: id });
+  async function saveBattle(input: BattleInput, imports: ImportMap) {
+    setSaveError(null);
+    try {
+      if (modal.kind === "edit") {
+        await campaign.updateBattle(modal.battleId, input, imports);
+        setModal({ kind: "detail", battleId: modal.battleId });
+      } else if (modal.kind === "create") {
+        const id = await campaign.addBattle(input, imports);
+        setModal({ kind: "detail", battleId: id });
+      }
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -96,9 +103,11 @@ export default function CampaignPage() {
     <main className="flex h-dvh">
       <div className="relative min-w-0 flex-1">
         <div className="pointer-events-none absolute left-4 top-4 z-10">
-          <h1 className="text-xl text-accent">{system.star.name} System</h1>
+          <h1 className="text-xl text-accent">
+            {campaign.name || `${system.star.name} System`}
+          </h1>
           <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
-            Seed {system.seed} · {battles.length} battle
+            {system.star.name} · Seed {system.seed} · {battles.length} battle
             {battles.length === 1 ? "" : "s"} recorded
           </p>
         </div>
@@ -133,23 +142,45 @@ export default function CampaignPage() {
               if (e.target === e.currentTarget) setModal({ kind: "none" });
             }}
           >
-            {modal.kind === "create" || modal.kind === "edit" ? (
-              <BattleForm
-                system={system}
-                battle={modal.kind === "edit" ? modalBattle : null}
-                armyLists={campaign.armyLists}
-                initialLocationId={
-                  modal.kind === "create" ? modal.locationId : null
-                }
-                onSave={saveBattle}
-                onCancel={() => setModal({ kind: "none" })}
+            {modal.kind === "roster" ? (
+              <RosterPanel
+                players={campaign.players}
+                myPlayerId={campaign.myPlayerId}
+                isAdmin={campaign.isAdmin}
+                isMod={campaign.isMod}
+                inviteCode={campaign.inviteCode}
+                onSetRole={(id, role) => void campaign.setRole(id, role)}
+                onRemove={(id) => void campaign.removePlayer(id)}
+                onClose={() => setModal({ kind: "none" })}
               />
+            ) : modal.kind === "create" || modal.kind === "edit" ? (
+              <div className="flex flex-col items-center gap-2">
+                {saveError && (
+                  <p className="rounded border border-danger/50 bg-surface px-3 py-1 text-sm text-danger">
+                    {saveError}
+                  </p>
+                )}
+                <BattleForm
+                  system={system}
+                  battle={modal.kind === "edit" ? modalBattle : null}
+                  armyLists={campaign.armyLists}
+                  initialLocationId={
+                    modal.kind === "create" ? modal.locationId : null
+                  }
+                  onSave={(input, imports) => void saveBattle(input, imports)}
+                  onCancel={() => {
+                    setSaveError(null);
+                    setModal({ kind: "none" });
+                  }}
+                />
+              </div>
             ) : modalBattle ? (
               <BattleDetail
                 battle={modalBattle}
                 system={system}
                 armyLists={campaign.armyLists}
                 index={battles.findIndex((b) => b.id === modalBattle.id)}
+                canEdit={campaign.canEditBattle(modalBattle)}
                 onEdit={() =>
                   setModal({ kind: "edit", battleId: modalBattle.id })
                 }
@@ -159,7 +190,7 @@ export default function CampaignPage() {
                       "Strike this battle from the record? This cannot be undone."
                     )
                   ) {
-                    deleteBattle(modalBattle.id);
+                    void campaign.deleteBattle(modalBattle.id);
                     setModal({ kind: "none" });
                   }
                 }}
@@ -183,9 +214,21 @@ export default function CampaignPage() {
             ? modal.battleId
             : null
         }
+        canReorder={campaign.canEditBattle}
         onSelectBattle={openBattle}
         onAddBattle={() => setModal({ kind: "create", locationId: null })}
-        onMoveBattle={moveBattle}
+        onMoveBattle={(id, idx) => void campaign.moveBattle(id, idx)}
+        headerExtra={
+          campaign.mode === "remote" ? (
+            <button
+              onClick={() => setModal({ kind: "roster" })}
+              title="Players and invite code"
+              className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+            >
+              ☰ {campaign.players.length}
+            </button>
+          ) : null
+        }
       />
     </main>
   );

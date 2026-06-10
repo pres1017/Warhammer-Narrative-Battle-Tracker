@@ -1,32 +1,20 @@
 "use client";
 
 import type { Battle, StarSystem } from "@/lib/types";
-import type { StoredArmyList } from "@/lib/local";
-import { base64ToBytes } from "@/lib/rosters/file";
+import type { ArmyList } from "@/lib/rosters/types";
+import { downloadArmyFile } from "@/lib/rosters/download";
 import { RosterView } from "./RosterView";
 
 interface BattleDetailProps {
   battle: Battle;
   system: StarSystem;
-  armyLists: StoredArmyList[];
+  armyLists: ArmyList[];
   index: number;
+  canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
   onFocusLocation?: (bodyId: string) => void;
-}
-
-function downloadArmyFile(list: StoredArmyList) {
-  const bytes = base64ToBytes(list.rawBase64);
-  const blob = new Blob([new Uint8Array(bytes)], {
-    type: "application/octet-stream",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = list.sourceFilename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function BattleDetail({
@@ -34,6 +22,7 @@ export function BattleDetail({
   system,
   armyLists,
   index,
+  canEdit,
   onEdit,
   onDelete,
   onClose,
@@ -130,7 +119,7 @@ export function BattleDetail({
                 <div className="mt-1">
                   <RosterView roster={list.roster} />
                   <button
-                    onClick={() => downloadArmyFile(list)}
+                    onClick={() => void downloadArmyFile(list)}
                     className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted underline-offset-2 hover:text-accent hover:underline"
                   >
                     ⬇ Download {list.sourceFilename}
@@ -153,20 +142,22 @@ export function BattleDetail({
         </div>
       )}
 
-      <div className="mt-1 flex justify-end gap-3 border-t border-border pt-3">
-        <button
-          onClick={onDelete}
-          className="rounded border border-danger/50 px-3 py-1.5 font-display text-sm text-danger hover:bg-danger/10"
-        >
-          Strike from Record
-        </button>
-        <button
-          onClick={onEdit}
-          className="rounded border border-accent-dim px-3 py-1.5 font-display text-sm text-accent hover:bg-surface-raised"
-        >
-          Amend
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-1 flex justify-end gap-3 border-t border-border pt-3">
+          <button
+            onClick={onDelete}
+            className="rounded border border-danger/50 px-3 py-1.5 font-display text-sm text-danger hover:bg-danger/10"
+          >
+            Strike from Record
+          </button>
+          <button
+            onClick={onEdit}
+            className="rounded border border-accent-dim px-3 py-1.5 font-display text-sm text-accent hover:bg-surface-raised"
+          >
+            Amend
+          </button>
+        </div>
+      )}
     </div>
   );
 }

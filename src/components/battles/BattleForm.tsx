@@ -7,7 +7,7 @@ import type {
   ImportMap,
   PendingImport,
 } from "@/hooks/useLocalCampaign";
-import type { StoredArmyList } from "@/lib/local";
+import type { ArmyList } from "@/lib/rosters/types";
 import { ArmyImport } from "./ArmyImport";
 import { RosterView } from "./RosterView";
 
@@ -16,7 +16,7 @@ interface BattleFormProps {
   /** Existing battle when editing; null when creating. */
   battle: Battle | null;
   /** Already-saved army lists, to show existing attachments while editing. */
-  armyLists: StoredArmyList[];
+  armyLists: ArmyList[];
   /** Pre-selected location (e.g. "add battle here" from the map). */
   initialLocationId?: string | null;
   onSave: (input: BattleInput, imports: ImportMap) => void;

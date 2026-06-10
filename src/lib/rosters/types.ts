@@ -33,4 +33,8 @@ export interface ArmyList {
   format: RosterFormat;
   sourceFilename: string;
   roster: NormalizedRoster;
+  /** Original file, base64 — local campaigns only. */
+  rawBase64?: string;
+  /** Path in the army-files Storage bucket — remote campaigns only. */
+  storagePath?: string | null;
 }
