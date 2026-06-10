@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Warhammer Battle Mapper
 
-## Getting Started
+A collaborative campaign tracker for Warhammer 40,000 (11th edition) groups —
+from three friends to an entire FLGS. Generate a contested star system,
+gather your players, and chronicle every battle fought across it.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Seeded solar system generator** — tune planets, star type, danger level,
+  and warp storm activity; re-roll until the omens please you, then lock the
+  system in. The same seed and knobs always produce the same system.
+- **Interactive orbital map** — pan/zoom SVG map with clickable planets,
+  moons, asteroid belts, stations, and points of interest, each with
+  40k-flavoured classifications and lore blurbs. Battle-count badges mark
+  contested worlds.
+- **Battle chronicle** — an always-visible sidebar lists battles in campaign
+  order. Record factions, players, points, mission, victor, location, and
+  narrative notes; drag to reorder the timeline; filter by title, faction,
+  player, or planet.
+- **Army list import** — attach the actual lists used: New Recruit `.json`,
+  BattleScribe `.ros`, or `.rosz`. Parsed into an expandable roster
+  (units, wargear, enhancements, points) with the original file kept for
+  download.
+- **Collaboration** — campaigns are shared via invite code or link; players
+  join with just a display name (anonymous auth, no passwords). Changes sync
+  to everyone in near-realtime.
+- **Roles** — the creator (Warmaster) promotes moderators (Lieutenants);
+  everyone can add battles and edit their own, mods can curate everything.
+  Enforced server-side with Postgres row-level security.
+- **Offline mode** — no backend configured? A single local campaign works
+  entirely in your browser.
+
+## Getting started
+
+See [SETUP.md](SETUP.md) for local development, Supabase configuration, and
+Vercel deployment.
+
+```
+npm install
+npm run dev    # http://localhost:3000
+npm test       # generator, ordering, and roster-parser tests
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js (App Router) · TypeScript · Tailwind CSS v4 · Supabase (Postgres,
+Realtime, anonymous auth, Storage) · d3-zoom · dnd-kit · fractional-indexing
+· fast-xml-parser · fflate · Vitest

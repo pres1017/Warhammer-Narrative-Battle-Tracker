@@ -27,6 +27,7 @@ export default function CampaignPage() {
   const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>({ kind: "none" });
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const mapRef = useRef<SystemMapHandle>(null);
 
   const { status, system, systemLocked, battles, isAdmin } = campaign;
@@ -112,6 +113,14 @@ export default function CampaignPage() {
           </p>
         </div>
 
+        <button
+          onClick={() => setSidebarOpen((open) => !open)}
+          aria-label={sidebarOpen ? "Hide battle list" : "Show battle list"}
+          className="absolute right-4 top-4 z-10 rounded border border-border bg-surface/90 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+        >
+          {sidebarOpen ? "Chronicle ▸" : "◂ Chronicle"}
+        </button>
+
         <SystemMap
           ref={mapRef}
           system={system}
@@ -121,7 +130,7 @@ export default function CampaignPage() {
         />
 
         {selectedBody && modal.kind === "none" && (
-          <div className="pointer-events-none absolute right-4 top-4 z-10">
+          <div className="pointer-events-none absolute right-4 top-14 z-10">
             <PlanetPanel
               system={system}
               body={selectedBody}
@@ -206,6 +215,7 @@ export default function CampaignPage() {
         )}
       </div>
 
+      {sidebarOpen && (
       <BattleSidebar
         battles={battles}
         system={system}
@@ -230,6 +240,7 @@ export default function CampaignPage() {
           ) : null
         }
       />
+      )}
     </main>
   );
 }
