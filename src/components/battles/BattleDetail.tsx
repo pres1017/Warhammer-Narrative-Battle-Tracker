@@ -1,10 +1,14 @@
 "use client";
 
 import type { Battle, StarSystem } from "@/lib/types";
+import type { StoredArmyList } from "@/lib/local";
+import { base64ToBytes } from "@/lib/rosters/file";
+import { RosterView } from "./RosterView";
 
 interface BattleDetailProps {
   battle: Battle;
   system: StarSystem;
+  armyLists: StoredArmyList[];
   index: number;
   onEdit: () => void;
   onDelete: () => void;
@@ -12,9 +16,23 @@ interface BattleDetailProps {
   onFocusLocation?: (bodyId: string) => void;
 }
 
+function downloadArmyFile(list: StoredArmyList) {
+  const bytes = base64ToBytes(list.rawBase64);
+  const blob = new Blob([new Uint8Array(bytes)], {
+    type: "application/octet-stream",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = list.sourceFilename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function BattleDetail({
   battle,
   system,
+  armyLists,
   index,
   onEdit,
   onDelete,
@@ -98,6 +116,29 @@ export function BattleDetail({
               ))}
             </tbody>
           </table>
+
+          {battle.participants.map((p) => {
+            const list = p.armyListId
+              ? armyLists.find((l) => l.id === p.armyListId)
+              : null;
+            if (!list) return null;
+            return (
+              <details key={p.key} className="mt-2">
+                <summary className="cursor-pointer font-mono text-[11px] uppercase tracking-wider text-accent hover:underline">
+                  ⚙ {p.playerName || p.faction} — army list
+                </summary>
+                <div className="mt-1">
+                  <RosterView roster={list.roster} />
+                  <button
+                    onClick={() => downloadArmyFile(list)}
+                    className="mt-1 font-mono text-[10px] uppercase tracking-wider text-muted underline-offset-2 hover:text-accent hover:underline"
+                  >
+                    ⬇ Download {list.sourceFilename}
+                  </button>
+                </div>
+              </details>
+            );
+          })}
         </div>
       )}
 

@@ -9,6 +9,8 @@ import {
   updateLocalCampaign,
 } from "@/lib/local";
 import { keyForAppend, keyForMove } from "@/lib/ordering";
+import type { NormalizedRoster, RosterFormat } from "@/lib/rosters/types";
+import type { StoredArmyList } from "@/lib/local";
 
 export interface BattleInput {
   locationId: string | null;
@@ -18,6 +20,47 @@ export interface BattleInput {
   winner: string;
   participants: Battle["participants"];
   notes: string;
+}
+
+/** A freshly imported army file, keyed by participant in the save call. */
+export interface PendingImport {
+  format: RosterFormat;
+  sourceFilename: string;
+  roster: NormalizedRoster;
+  rawBase64: string;
+}
+
+export type ImportMap = Record<string, PendingImport>;
+
+function applyImports(
+  battleId: string,
+  input: BattleInput,
+  imports: ImportMap,
+  existingLists: StoredArmyList[]
+): { participants: Battle["participants"]; armyLists: StoredArmyList[] } {
+  const keptKeys = new Set(input.participants.map((p) => p.key));
+  // Drop lists for removed participants or ones being replaced by a new import.
+  const armyLists = existingLists.filter(
+    (l) =>
+      l.battleId !== battleId ||
+      (keptKeys.has(l.participantKey) && !imports[l.participantKey])
+  );
+  const participants = input.participants.map((p) => {
+    const pending = imports[p.key];
+    if (!pending) return p;
+    const list: StoredArmyList = {
+      id: crypto.randomUUID(),
+      battleId,
+      participantKey: p.key,
+      format: pending.format,
+      sourceFilename: pending.sourceFilename,
+      roster: pending.roster,
+      rawBase64: pending.rawBase64,
+    };
+    armyLists.push(list);
+    return { ...p, armyListId: list.id };
+  });
+  return { participants, armyLists };
 }
 
 const emptySubscribe = () => () => {};
@@ -43,36 +86,63 @@ export function useLocalCampaign() {
   );
   const hydrated = useHydrated();
 
-  const addBattle = useCallback((input: BattleInput): string => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-    updateLocalCampaign((c) => ({
-      ...c,
-      battles: [
-        ...c.battles,
-        {
-          ...input,
+  const addBattle = useCallback(
+    (input: BattleInput, imports: ImportMap = {}): string => {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      updateLocalCampaign((c) => {
+        const { participants, armyLists } = applyImports(
           id,
-          sortKey: keyForAppend(c.battles),
-          createdBy: null,
-          createdAt: now,
-          updatedAt: now,
-        },
-      ],
-    }));
-    return id;
-  }, []);
+          input,
+          imports,
+          c.armyLists
+        );
+        return {
+          ...c,
+          armyLists,
+          battles: [
+            ...c.battles,
+            {
+              ...input,
+              participants,
+              id,
+              sortKey: keyForAppend(c.battles),
+              createdBy: null,
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        };
+      });
+      return id;
+    },
+    []
+  );
 
   const updateBattle = useCallback(
-    (id: string, patch: Partial<BattleInput>) => {
-      updateLocalCampaign((c) => ({
-        ...c,
-        battles: c.battles.map((b) =>
-          b.id === id
-            ? { ...b, ...patch, updatedAt: new Date().toISOString() }
-            : b
-        ),
-      }));
+    (id: string, input: BattleInput, imports: ImportMap = {}) => {
+      updateLocalCampaign((c) => {
+        const { participants, armyLists } = applyImports(
+          id,
+          input,
+          imports,
+          c.armyLists
+        );
+        return {
+          ...c,
+          armyLists,
+          battles: c.battles.map((b) =>
+            b.id === id
+              ? {
+                  ...b,
+                  ...input,
+                  participants,
+                  updatedAt: new Date().toISOString(),
+                }
+              : b
+          ),
+        };
+      });
     },
     []
   );
@@ -81,6 +151,7 @@ export function useLocalCampaign() {
     updateLocalCampaign((c) => ({
       ...c,
       battles: c.battles.filter((b) => b.id !== id),
+      armyLists: c.armyLists.filter((l) => l.battleId !== id),
     }));
   }, []);
 

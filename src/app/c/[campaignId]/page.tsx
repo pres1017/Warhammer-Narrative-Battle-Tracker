@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useLocalCampaign, type BattleInput } from "@/hooks/useLocalCampaign";
+import {
+  useLocalCampaign,
+  type BattleInput,
+  type ImportMap,
+} from "@/hooks/useLocalCampaign";
 import { sortBattles } from "@/lib/ordering";
 import { SystemMap, type SystemMapHandle } from "@/components/map/SystemMap";
 import { PlanetPanel } from "@/components/map/PlanetPanel";
@@ -78,12 +82,12 @@ export default function CampaignPage() {
     }
   }
 
-  function saveBattle(input: BattleInput) {
+  function saveBattle(input: BattleInput, imports: ImportMap) {
     if (modal.kind === "edit") {
-      updateBattle(modal.battleId, input);
+      updateBattle(modal.battleId, input, imports);
       setModal({ kind: "detail", battleId: modal.battleId });
     } else if (modal.kind === "create") {
-      const id = addBattle(input);
+      const id = addBattle(input, imports);
       setModal({ kind: "detail", battleId: id });
     }
   }
@@ -133,6 +137,7 @@ export default function CampaignPage() {
               <BattleForm
                 system={system}
                 battle={modal.kind === "edit" ? modalBattle : null}
+                armyLists={campaign.armyLists}
                 initialLocationId={
                   modal.kind === "create" ? modal.locationId : null
                 }
@@ -143,6 +148,7 @@ export default function CampaignPage() {
               <BattleDetail
                 battle={modalBattle}
                 system={system}
+                armyLists={campaign.armyLists}
                 index={battles.findIndex((b) => b.id === modalBattle.id)}
                 onEdit={() =>
                   setModal({ kind: "edit", battleId: modalBattle.id })

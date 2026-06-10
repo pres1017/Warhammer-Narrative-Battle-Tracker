@@ -2,16 +2,31 @@
 
 import { useState } from "react";
 import type { Battle, Participant, StarSystem } from "@/lib/types";
-import type { BattleInput } from "@/hooks/useLocalCampaign";
+import type {
+  BattleInput,
+  ImportMap,
+  PendingImport,
+} from "@/hooks/useLocalCampaign";
+import type { StoredArmyList } from "@/lib/local";
+import { ArmyImport } from "./ArmyImport";
+import { RosterView } from "./RosterView";
 
 interface BattleFormProps {
   system: StarSystem;
   /** Existing battle when editing; null when creating. */
   battle: Battle | null;
+  /** Already-saved army lists, to show existing attachments while editing. */
+  armyLists: StoredArmyList[];
   /** Pre-selected location (e.g. "add battle here" from the map). */
   initialLocationId?: string | null;
-  onSave: (input: BattleInput) => void;
+  onSave: (input: BattleInput, imports: ImportMap) => void;
   onCancel: () => void;
+}
+
+/** "Chaos - Death Guard" → "Death Guard" for the faction autofill. */
+function shortFaction(catalogueName: string): string {
+  const parts = catalogueName.split(" - ");
+  return parts[parts.length - 1].trim();
 }
 
 function emptyParticipant(): Participant {
@@ -27,6 +42,7 @@ function emptyParticipant(): Participant {
 export function BattleForm({
   system,
   battle,
+  armyLists,
   initialLocationId,
   onSave,
   onCancel,
@@ -44,6 +60,7 @@ export function BattleForm({
       ? battle.participants
       : [emptyParticipant(), emptyParticipant()]
   );
+  const [imports, setImports] = useState<ImportMap>({});
 
   const namedBodies = system.bodies.filter((b) => b.kind !== "moon");
 
@@ -53,19 +70,47 @@ export function BattleForm({
     );
   }
 
+  function attachedFilename(p: Participant): string | null {
+    const pending = imports[p.key];
+    if (pending) return pending.sourceFilename;
+    if (p.armyListId) {
+      return (
+        armyLists.find((l) => l.id === p.armyListId)?.sourceFilename ?? null
+      );
+    }
+    return null;
+  }
+
+  function importArmy(p: Participant, pending: PendingImport) {
+    setImports((m) => ({ ...m, [p.key]: pending }));
+    // Auto-fill faction and points from the parsed list (still editable).
+    setParticipant(p.key, {
+      faction: p.faction.trim() || shortFaction(pending.roster.faction),
+      points: p.points ?? pending.roster.totalPoints,
+    });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    onSave({
-      title: title.trim(),
-      mission: mission.trim(),
-      foughtAt: foughtAt || null,
-      winner: winner.trim(),
-      locationId: locationId || null,
-      notes: notes.trim(),
-      participants: participants.filter(
-        (p) => p.playerName.trim() || p.faction.trim()
-      ),
-    });
+    const kept = participants.filter(
+      (p) => p.playerName.trim() || p.faction.trim()
+    );
+    const keptImports: ImportMap = {};
+    for (const p of kept) {
+      if (imports[p.key]) keptImports[p.key] = imports[p.key];
+    }
+    onSave(
+      {
+        title: title.trim(),
+        mission: mission.trim(),
+        foughtAt: foughtAt || null,
+        winner: winner.trim(),
+        locationId: locationId || null,
+        notes: notes.trim(),
+        participants: kept,
+      },
+      keptImports
+    );
   }
 
   const inputCls =
@@ -144,44 +189,52 @@ export function BattleForm({
           </button>
         </div>
         {participants.map((p, i) => (
-          <div key={p.key} className="flex items-center gap-2">
-            <input
-              className={inputCls}
-              value={p.playerName}
-              onChange={(e) =>
-                setParticipant(p.key, { playerName: e.target.value })
-              }
-              placeholder={`Player ${i + 1}`}
-            />
-            <input
-              className={inputCls}
-              value={p.faction}
-              onChange={(e) =>
-                setParticipant(p.key, { faction: e.target.value })
-              }
-              placeholder="Faction"
-            />
-            <input
-              className={`${inputCls} w-24`}
-              type="number"
-              value={p.points ?? ""}
-              onChange={(e) =>
-                setParticipant(p.key, {
-                  points: e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="Pts"
-            />
-            <button
-              type="button"
-              aria-label="Remove combatant"
-              onClick={() =>
-                setParticipants((list) => list.filter((x) => x.key !== p.key))
-              }
-              className="px-1 text-muted hover:text-danger"
-            >
-              ✕
-            </button>
+          <div key={p.key} className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <input
+                className={inputCls}
+                value={p.playerName}
+                onChange={(e) =>
+                  setParticipant(p.key, { playerName: e.target.value })
+                }
+                placeholder={`Player ${i + 1}`}
+              />
+              <input
+                className={inputCls}
+                value={p.faction}
+                onChange={(e) =>
+                  setParticipant(p.key, { faction: e.target.value })
+                }
+                placeholder="Faction"
+              />
+              <input
+                className={`${inputCls} w-24`}
+                type="number"
+                value={p.points ?? ""}
+                onChange={(e) =>
+                  setParticipant(p.key, {
+                    points:
+                      e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Pts"
+              />
+              <ArmyImport
+                attachedFilename={attachedFilename(p)}
+                onImport={(pending) => importArmy(p, pending)}
+              />
+              <button
+                type="button"
+                aria-label="Remove combatant"
+                onClick={() =>
+                  setParticipants((list) => list.filter((x) => x.key !== p.key))
+                }
+                className="px-1 text-muted hover:text-danger"
+              >
+                ✕
+              </button>
+            </div>
+            {imports[p.key] && <RosterView roster={imports[p.key].roster} />}
           </div>
         ))}
       </div>

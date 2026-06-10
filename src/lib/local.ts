@@ -1,4 +1,10 @@
 import type { Battle, StarSystem } from "./types";
+import type { ArmyList } from "./rosters/types";
+
+/** Army list plus the original file, kept locally until Phase 3 moves it to Storage. */
+export interface StoredArmyList extends ArmyList {
+  rawBase64: string;
+}
 
 /**
  * Phase 1–2 persistence: a single local campaign in localStorage, exposed as
@@ -10,6 +16,7 @@ export interface LocalCampaign {
   system: StarSystem | null;
   systemLocked: boolean;
   battles: Battle[];
+  armyLists: StoredArmyList[];
 }
 
 const KEY = "wbm:local-campaign";
@@ -19,6 +26,7 @@ export const EMPTY_CAMPAIGN: LocalCampaign = {
   system: null,
   systemLocked: false,
   battles: [],
+  armyLists: [],
 };
 
 let cache: LocalCampaign | null = null;
