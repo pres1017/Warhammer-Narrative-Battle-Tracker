@@ -1,0 +1,101 @@
+export type StarType =
+  | "young_blue"
+  | "mature_yellow"
+  | "ancient_red_giant"
+  | "dying_ember"
+  | "anomaly";
+
+export interface GeneratorParams {
+  planetCountMin: number;
+  planetCountMax: number;
+  starType: StarType;
+  /** 1 (backwater calm) – 5 (open warzone) */
+  dangerLevel: number;
+  /** 0 (none) – 3 (system-engulfing) */
+  warpStorms: number;
+}
+
+export type BodyKind = "planet" | "moon" | "belt" | "station" | "poi";
+
+export type Classification =
+  | "hive_world"
+  | "forge_world"
+  | "agri_world"
+  | "civilised_world"
+  | "shrine_world"
+  | "feral_world"
+  | "feudal_world"
+  | "death_world"
+  | "mining_world"
+  | "war_world"
+  | "daemon_world"
+  | "ork_held_world"
+  | "dead_world"
+  | "frontier_world"
+  | "cemetery_world"
+  | "gas_giant";
+
+export interface BodyVisual {
+  orbitRadius: number;
+  /** radians */
+  angle: number;
+  sizePx: number;
+  /** [base, highlight] hex colors */
+  palette: [string, string];
+  hasRings: boolean;
+}
+
+export interface Body {
+  id: string;
+  kind: BodyKind;
+  parentId: string | null;
+  name: string;
+  classification: Classification | null;
+  orbitIndex: number;
+  visual: BodyVisual;
+  blurb: string;
+  tags: string[];
+}
+
+export interface Star {
+  name: string;
+  type: StarType;
+  color: string;
+  radiusPx: number;
+}
+
+export interface StarSystem {
+  seed: string;
+  params: GeneratorParams;
+  star: Star;
+  bodies: Body[];
+  /** 0–3; rendered as a warp storm overlay when > 0 */
+  warpStormIntensity: number;
+}
+
+export interface Participant {
+  /** Stable key within the battle, links to an army list. */
+  key: string;
+  playerName: string;
+  faction: string;
+  points: number | null;
+  armyListId: string | null;
+}
+
+export interface Battle {
+  id: string;
+  /** Body id of where it was fought, if anywhere specific. */
+  locationId: string | null;
+  /** Fractional index controlling campaign order. */
+  sortKey: string;
+  title: string;
+  mission: string;
+  /** ISO date (yyyy-mm-dd) the battle was played. */
+  foughtAt: string | null;
+  winner: string;
+  participants: Participant[];
+  notes: string;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

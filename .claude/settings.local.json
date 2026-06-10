@@ -6,7 +6,9 @@
       "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements)",
       "PowerShell($dest = \"$env:LOCALAPPDATA\\\\Programs\"; New-Item -ItemType Directory -Force $dest | Out-Null; Invoke-WebRequest -Uri \"https://nodejs.org/dist/v24.16.0/node-v24.16.0-win-x64.zip\" -OutFile \"$env:TEMP\\\\node.zip\"; Expand-Archive -Path \"$env:TEMP\\\\node.zip\" -DestinationPath $dest -Force; if \\(Test-Path \"$dest\\\\nodejs\"\\) { Remove-Item -Recurse -Force \"$dest\\\\nodejs\" }; Rename-Item \"$dest\\\\node-v24.16.0-win-x64\" \"nodejs\"; & \"$dest\\\\nodejs\\\\node.exe\" --version)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm install; npm install @supabase/supabase-js d3-zoom d3-selection fractional-indexing fflate @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities; npm install -D vitest @types/d3-zoom @types/d3-selection)",
-      "PowerShell(git add -A)"
+      "PowerShell(git add -A)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx vitest run)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm install d3-transition; npm install -D @types/d3-transition)"
     ]
   }
 }
