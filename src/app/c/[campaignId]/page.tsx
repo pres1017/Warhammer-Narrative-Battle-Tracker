@@ -1,31 +1,58 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { LocalCampaign } from "@/lib/local";
-import { loadLocalCampaign } from "@/lib/local";
+import { useLocalCampaign, type BattleInput } from "@/hooks/useLocalCampaign";
+import { sortBattles } from "@/lib/ordering";
 import { SystemMap, type SystemMapHandle } from "@/components/map/SystemMap";
 import { PlanetPanel } from "@/components/map/PlanetPanel";
+import { BattleSidebar } from "@/components/battles/BattleSidebar";
+import { BattleForm } from "@/components/battles/BattleForm";
+import { BattleDetail } from "@/components/battles/BattleDetail";
+
+type Modal =
+  | { kind: "none" }
+  | { kind: "detail"; battleId: string }
+  | { kind: "edit"; battleId: string }
+  | { kind: "create"; locationId: string | null };
 
 export default function CampaignPage() {
   const router = useRouter();
   const params = useParams<{ campaignId: string }>();
   const campaignId = params.campaignId;
 
-  const [campaign, setCampaign] = useState<LocalCampaign | null>(null);
+  const {
+    campaign,
+    hydrated,
+    addBattle,
+    updateBattle,
+    deleteBattle,
+    moveBattle,
+  } = useLocalCampaign();
   const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
+  const [modal, setModal] = useState<Modal>({ kind: "none" });
   const mapRef = useRef<SystemMapHandle>(null);
 
   useEffect(() => {
-    const loaded = loadLocalCampaign();
-    if (!loaded.system || !loaded.systemLocked) {
+    if (hydrated && (!campaign.system || !campaign.systemLocked)) {
       router.replace(`/c/${campaignId}/setup`);
-      return;
     }
-    setCampaign(loaded);
-  }, [campaignId, router]);
+  }, [hydrated, campaign, campaignId, router]);
 
-  if (!campaign?.system) {
+  const system = campaign.system;
+  const battles = useMemo(() => sortBattles(campaign.battles), [campaign]);
+
+  const battleCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const battle of battles) {
+      if (battle.locationId) {
+        counts[battle.locationId] = (counts[battle.locationId] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [battles]);
+
+  if (!system) {
     return (
       <main className="flex h-dvh items-center justify-center">
         <p className="font-mono text-sm uppercase tracking-widest text-muted">
@@ -35,15 +62,29 @@ export default function CampaignPage() {
     );
   }
 
-  const system = campaign.system;
   const selectedBody =
     system.bodies.find((b) => b.id === selectedBodyId) ?? null;
+  const modalBattle =
+    modal.kind === "detail" || modal.kind === "edit"
+      ? battles.find((b) => b.id === modal.battleId) ?? null
+      : null;
 
-  const battleCounts: Record<string, number> = {};
-  for (const battle of campaign.battles) {
-    if (battle.locationId) {
-      battleCounts[battle.locationId] =
-        (battleCounts[battle.locationId] ?? 0) + 1;
+  function openBattle(battleId: string) {
+    setModal({ kind: "detail", battleId });
+    const battle = battles.find((b) => b.id === battleId);
+    if (battle?.locationId) {
+      setSelectedBodyId(battle.locationId);
+      mapRef.current?.zoomToBody(battle.locationId);
+    }
+  }
+
+  function saveBattle(input: BattleInput) {
+    if (modal.kind === "edit") {
+      updateBattle(modal.battleId, input);
+      setModal({ kind: "detail", battleId: modal.battleId });
+    } else if (modal.kind === "create") {
+      const id = addBattle(input);
+      setModal({ kind: "detail", battleId: id });
     }
   }
 
@@ -53,9 +94,11 @@ export default function CampaignPage() {
         <div className="pointer-events-none absolute left-4 top-4 z-10">
           <h1 className="text-xl text-accent">{system.star.name} System</h1>
           <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
-            Seed {system.seed} · {campaign.battles.length} battles recorded
+            Seed {system.seed} · {battles.length} battle
+            {battles.length === 1 ? "" : "s"} recorded
           </p>
         </div>
+
         <SystemMap
           ref={mapRef}
           system={system}
@@ -63,17 +106,81 @@ export default function CampaignPage() {
           onSelectBody={setSelectedBodyId}
           battleCounts={battleCounts}
         />
-        {selectedBody && (
+
+        {selectedBody && modal.kind === "none" && (
           <div className="pointer-events-none absolute right-4 top-4 z-10">
             <PlanetPanel
               system={system}
               body={selectedBody}
-              battles={campaign.battles}
+              battles={battles}
               onClose={() => setSelectedBodyId(null)}
+              onSelectBattle={openBattle}
+              onAddBattleHere={(bodyId) =>
+                setModal({ kind: "create", locationId: bodyId })
+              }
             />
           </div>
         )}
+
+        {modal.kind !== "none" && (
+          <div
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setModal({ kind: "none" });
+            }}
+          >
+            {modal.kind === "create" || modal.kind === "edit" ? (
+              <BattleForm
+                system={system}
+                battle={modal.kind === "edit" ? modalBattle : null}
+                initialLocationId={
+                  modal.kind === "create" ? modal.locationId : null
+                }
+                onSave={saveBattle}
+                onCancel={() => setModal({ kind: "none" })}
+              />
+            ) : modalBattle ? (
+              <BattleDetail
+                battle={modalBattle}
+                system={system}
+                index={battles.findIndex((b) => b.id === modalBattle.id)}
+                onEdit={() =>
+                  setModal({ kind: "edit", battleId: modalBattle.id })
+                }
+                onDelete={() => {
+                  if (
+                    window.confirm(
+                      "Strike this battle from the record? This cannot be undone."
+                    )
+                  ) {
+                    deleteBattle(modalBattle.id);
+                    setModal({ kind: "none" });
+                  }
+                }}
+                onClose={() => setModal({ kind: "none" })}
+                onFocusLocation={(bodyId) => {
+                  setModal({ kind: "none" });
+                  setSelectedBodyId(bodyId);
+                  mapRef.current?.zoomToBody(bodyId);
+                }}
+              />
+            ) : null}
+          </div>
+        )}
       </div>
+
+      <BattleSidebar
+        battles={battles}
+        system={system}
+        selectedBattleId={
+          modal.kind === "detail" || modal.kind === "edit"
+            ? modal.battleId
+            : null
+        }
+        onSelectBattle={openBattle}
+        onAddBattle={() => setModal({ kind: "create", locationId: null })}
+        onMoveBattle={moveBattle}
+      />
     </main>
   );
 }

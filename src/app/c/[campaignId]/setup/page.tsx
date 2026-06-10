@@ -5,7 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import type { GeneratorParams } from "@/lib/types";
 import { DEFAULT_PARAMS, generateSystem } from "@/lib/generator/system";
 import { randomSeedString } from "@/lib/generator/prng";
-import { loadLocalCampaign, saveLocalCampaign } from "@/lib/local";
+import { updateLocalCampaign } from "@/lib/local";
+import { useHydrated, useLocalCampaign } from "@/hooks/useLocalCampaign";
 import { GeneratorForm } from "@/components/setup/GeneratorForm";
 import { SystemMap, type SystemMapHandle } from "@/components/map/SystemMap";
 import { PlanetPanel } from "@/components/map/PlanetPanel";
@@ -14,35 +15,41 @@ export default function SetupPage() {
   const router = useRouter();
   const params = useParams<{ campaignId: string }>();
   const campaignId = params.campaignId;
+  const hydrated = useHydrated();
+  const { campaign } = useLocalCampaign();
 
   const [genParams, setGenParams] = useState<GeneratorParams>(DEFAULT_PARAMS);
-  const [seed, setSeed] = useState("");
+  // Initializer also runs (and is discarded) on the server; the form is only
+  // rendered after hydration, so the values never mismatch.
+  const [seed, setSeed] = useState(randomSeedString);
   const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
   const mapRef = useRef<SystemMapHandle>(null);
 
-  // Seed is random per visit; set after mount to avoid hydration mismatch.
-  useEffect(() => {
-    setSeed((s) => s || randomSeedString());
-  }, []);
-
   // If the system is already locked, setup is closed.
   useEffect(() => {
-    const campaign = loadLocalCampaign();
-    if (campaign.systemLocked) router.replace(`/c/${campaignId}`);
-  }, [campaignId, router]);
+    if (hydrated && campaign.systemLocked) router.replace(`/c/${campaignId}`);
+  }, [hydrated, campaign.systemLocked, campaignId, router]);
 
   const system = useMemo(
-    () => (seed ? generateSystem(genParams, seed) : null),
+    () => generateSystem(genParams, seed),
     [genParams, seed]
   );
 
+  if (!hydrated || campaign.systemLocked) {
+    return (
+      <main className="flex h-dvh items-center justify-center">
+        <p className="font-mono text-sm uppercase tracking-widest text-muted">
+          Consulting the cartographers…
+        </p>
+      </main>
+    );
+  }
+
   const selectedBody =
-    system?.bodies.find((b) => b.id === selectedBodyId) ?? null;
+    system.bodies.find((b) => b.id === selectedBodyId) ?? null;
 
   function lockIn() {
-    if (!system) return;
-    const campaign = loadLocalCampaign();
-    saveLocalCampaign({ ...campaign, system, systemLocked: true });
+    updateLocalCampaign((c) => ({ ...c, system, systemLocked: true }));
     router.push(`/c/${campaignId}`);
   }
 
@@ -65,15 +72,13 @@ export default function SetupPage() {
         />
       </div>
       <div className="relative min-h-0 flex-1">
-        {system && (
-          <SystemMap
-            ref={mapRef}
-            system={system}
-            selectedBodyId={selectedBodyId}
-            onSelectBody={setSelectedBodyId}
-          />
-        )}
-        {system && selectedBody && (
+        <SystemMap
+          ref={mapRef}
+          system={system}
+          selectedBodyId={selectedBodyId}
+          onSelectBody={setSelectedBodyId}
+        />
+        {selectedBody && (
           <div className="pointer-events-none absolute right-4 top-4">
             <PlanetPanel
               system={system}
