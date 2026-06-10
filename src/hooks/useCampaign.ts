@@ -5,7 +5,11 @@ import type { Battle, StarSystem } from "@/lib/types";
 import type { ArmyList } from "@/lib/rosters/types";
 import { keyForAppend, keyForMove, sortBattles } from "@/lib/ordering";
 import { updateLocalCampaign } from "@/lib/local";
-import { isSupabaseConfigured, ensureSession } from "@/lib/supabase";
+import {
+  isSupabaseConfigured,
+  ensureSession,
+  getSupabase,
+} from "@/lib/supabase";
 import * as api from "@/lib/api";
 import {
   useLocalCampaign,
@@ -83,6 +87,116 @@ function useRemoteCampaign(campaignId: string | null): CampaignController {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [refresh]);
+
+  // Realtime: one channel per campaign patches the cache; reconnects and
+  // tab re-focus trigger a full refetch to heal any missed events.
+  useEffect(() => {
+    if (!campaignId || !isSupabaseConfigured) return;
+    const supabase = getSupabase();
+    const opts = (table: string) => ({
+      event: "*" as const,
+      schema: "public",
+      table,
+      filter: `campaign_id=eq.${campaignId}`,
+    });
+
+    let sawFirstSubscribe = false;
+    const channel = supabase
+      .channel(`campaign:${campaignId}`)
+      .on("postgres_changes", opts("battles"), (payload) => {
+        setData((d) => {
+          if (!d) return d;
+          if (payload.eventType === "DELETE") {
+            const id = (payload.old as { id?: string }).id;
+            return { ...d, battles: d.battles.filter((b) => b.id !== id) };
+          }
+          const battle = api.battleFromRow(payload.new as api.BattleRow);
+          const rest = d.battles.filter((b) => b.id !== battle.id);
+          return { ...d, battles: [...rest, battle] };
+        });
+      })
+      .on("postgres_changes", opts("army_lists"), (payload) => {
+        setData((d) => {
+          if (!d) return d;
+          if (payload.eventType === "DELETE") {
+            const id = (payload.old as { id?: string }).id;
+            return { ...d, armyLists: d.armyLists.filter((l) => l.id !== id) };
+          }
+          const list = api.armyListFromRow(payload.new as api.ArmyListRow);
+          const rest = d.armyLists.filter((l) => l.id !== list.id);
+          return { ...d, armyLists: [...rest, list] };
+        });
+      })
+      .on("postgres_changes", opts("players"), (payload) => {
+        setData((d) => {
+          if (!d) return d;
+          if (payload.eventType === "DELETE") {
+            const id = (payload.old as { id?: string }).id;
+            return { ...d, players: d.players.filter((p) => p.id !== id) };
+          }
+          const row = payload.new as {
+            id: string;
+            display_name: string;
+            role: api.Role;
+            auth_user_id: string;
+          };
+          const player: api.PlayerInfo = {
+            id: row.id,
+            displayName: row.display_name,
+            role: row.role,
+            authUserId: row.auth_user_id,
+          };
+          const rest = d.players.filter((p) => p.id !== player.id);
+          const players = [...rest, player];
+          const me = players.find((p) => p.id === d.myPlayerId);
+          return { ...d, players, myRole: me?.role ?? d.myRole };
+        });
+      })
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "campaigns",
+          filter: `id=eq.${campaignId}`,
+        },
+        (payload) => {
+          const row = payload.new as { name: string; system_locked: boolean };
+          // Lock-in flips peers from the waiting screen to the map; refetch
+          // to pull the freshly inscribed system and bodies.
+          if (row.system_locked) void refresh();
+          setData((d) =>
+            d
+              ? {
+                  ...d,
+                  campaign: {
+                    ...d.campaign,
+                    name: row.name,
+                    systemLocked: row.system_locked,
+                  },
+                }
+              : d
+          );
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // Re-heal after reconnects (skip the initial subscribe; the
+          // mount effect already fetches).
+          if (sawFirstSubscribe) void refresh();
+          sawFirstSubscribe = true;
+        }
+      });
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      void supabase.removeChannel(channel);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [campaignId, refresh]);
 
   const myRole = data?.myRole ?? null;
   const myPlayerId = data?.myPlayerId ?? null;

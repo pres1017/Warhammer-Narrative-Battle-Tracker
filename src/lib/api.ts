@@ -46,7 +46,7 @@ export interface RemotePendingImport {
 
 // ---------------------------------------------------------------- mapping
 
-interface BattleRow {
+export interface BattleRow {
   id: string;
   location_id: string | null;
   sort_key: string;
@@ -61,7 +61,7 @@ interface BattleRow {
   updated_at: string;
 }
 
-function battleFromRow(row: BattleRow): Battle {
+export function battleFromRow(row: BattleRow): Battle {
   return {
     id: row.id,
     locationId: row.location_id,
@@ -90,7 +90,7 @@ interface BodyRow {
   tags: string[];
 }
 
-interface ArmyListRow {
+export interface ArmyListRow {
   id: string;
   battle_id: string;
   participant_key: string;
@@ -100,7 +100,7 @@ interface ArmyListRow {
   storage_path: string | null;
 }
 
-function armyListFromRow(row: ArmyListRow): ArmyList {
+export function armyListFromRow(row: ArmyListRow): ArmyList {
   return {
     id: row.id,
     battleId: row.battle_id,
