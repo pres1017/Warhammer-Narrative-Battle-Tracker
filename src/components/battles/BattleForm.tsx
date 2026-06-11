@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Battle, Participant, StarSystem } from "@/lib/types";
+import type { Battle, Participant, ScoreMode, StarSystem } from "@/lib/types";
 import type {
   BattleInput,
   ImportMap,
@@ -60,6 +60,9 @@ export function BattleForm({
       ? battle.participants
       : [emptyParticipant(), emptyParticipant()]
   );
+  const [scoreMode, setScoreMode] = useState<ScoreMode>(
+    battle?.scoreMode ?? "simple"
+  );
   const [imports, setImports] = useState<ImportMap>({});
 
   const namedBodies = system.bodies.filter((b) => b.kind !== "moon");
@@ -108,6 +111,7 @@ export function BattleForm({
         locationId: locationId || null,
         notes: notes.trim(),
         participants: kept,
+        scoreMode,
       },
       keptImports
     );
@@ -121,7 +125,7 @@ export function BattleForm({
   return (
     <form
       onSubmit={submit}
-      className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded border border-border bg-surface p-5 shadow-2xl"
+      className="gothic-panel flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded p-5"
     >
       <h3 className="text-lg text-accent">
         {battle ? "Amend Battle Record" : "Record a Battle"}
@@ -237,6 +241,96 @@ export function BattleForm({
             {imports[p.key] && <RosterView roster={imports[p.key].roster} />}
           </div>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded border border-border/60 bg-surface-raised/40 p-3">
+        <div className="flex items-center justify-between">
+          <span className={labelCls}>Final Score</span>
+          <div className="flex overflow-hidden rounded border border-border">
+            <button
+              type="button"
+              onClick={() => setScoreMode("simple")}
+              className={`px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                scoreMode === "simple"
+                  ? "bg-accent-dim/30 text-accent"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              onClick={() => setScoreMode("detailed")}
+              className={`border-l border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider transition-colors ${
+                scoreMode === "detailed"
+                  ? "bg-accent-dim/30 text-accent"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              Primary + Secondary
+            </button>
+          </div>
+        </div>
+        {participants.map((p, i) => {
+          const name =
+            p.playerName.trim() || p.faction.trim() || `Player ${i + 1}`;
+          return scoreMode === "simple" ? (
+            <div key={p.key} className="flex items-center gap-2">
+              <span className="flex-1 truncate text-sm text-foreground/90">
+                {name}
+              </span>
+              <input
+                className={`${inputCls} w-24`}
+                type="number"
+                min={0}
+                value={p.vp ?? ""}
+                onChange={(e) =>
+                  setParticipant(p.key, {
+                    vp: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="VP"
+              />
+            </div>
+          ) : (
+            <div key={p.key} className="flex items-center gap-2">
+              <span className="flex-1 truncate text-sm text-foreground/90">
+                {name}
+              </span>
+              <input
+                className={`${inputCls} w-24`}
+                type="number"
+                min={0}
+                value={p.vpPrimary ?? ""}
+                onChange={(e) =>
+                  setParticipant(p.key, {
+                    vpPrimary:
+                      e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Primary"
+              />
+              <input
+                className={`${inputCls} w-24`}
+                type="number"
+                min={0}
+                value={p.vpSecondary ?? ""}
+                onChange={(e) =>
+                  setParticipant(p.key, {
+                    vpSecondary:
+                      e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="Secondary"
+              />
+              <span className="w-10 text-right font-mono text-xs text-muted">
+                {p.vpPrimary == null && p.vpSecondary == null
+                  ? "—"
+                  : (p.vpPrimary ?? 0) + (p.vpSecondary ?? 0)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <label className="flex flex-col gap-1">

@@ -41,7 +41,7 @@ export function RosterPanel({
   }
 
   return (
-    <div className="flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded border border-border bg-surface p-5 shadow-2xl">
+    <div className="gothic-panel flex max-h-[85vh] w-full max-w-md flex-col gap-3 overflow-y-auto rounded p-5">
       <div className="flex items-start justify-between">
         <h3 className="text-lg text-accent">Muster Roll</h3>
         <button

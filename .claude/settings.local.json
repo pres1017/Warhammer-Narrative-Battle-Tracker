@@ -21,7 +21,16 @@
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx tsc --noEmit; if \\($?\\) { npm run lint; if \\($?\\) { npx vitest run; if \\($?\\) { npm run build } } })",
       "PowerShell($pages = @\\(\"http://localhost:3000\", \"http://localhost:3000/c/local/setup\", \"http://localhost:3000/c/local\", \"http://localhost:3000/join/ABC123\"\\); foreach \\($p in $pages\\) { try { $r = Invoke-WebRequest -Uri $p -UseBasicParsing -TimeoutSec 15; \"$p -> $\\($r.StatusCode\\)\" } catch { \"$p -> FAILED: $\\($_.Exception.Message\\)\" } })",
       "PowerShell(gh --version)",
-      "PowerShell(gh auth status)"
+      "PowerShell(gh auth status)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Name \"node\" -Force -ErrorAction SilentlyContinue)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; Remove-Item -Recurse -Force \".next\" -ErrorAction SilentlyContinue; Write-Host \"Cleared .next cache\"; npm run dev)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm rebuild lightningcss 2>&1)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm install)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000\" -UseBasicParsing -TimeoutSec 15)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx vitest run 2>&1 | Select-Object -Last 15; npx tsc --noEmit)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm run build 2>&1 | Select-Object -Last 25)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx eslint src --max-warnings 0 2>&1 | Select-Object -Last 10)"
     ]
   }
 }

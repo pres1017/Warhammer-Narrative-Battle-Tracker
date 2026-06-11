@@ -12,6 +12,7 @@ import { select } from "d3-selection";
 import "d3-transition";
 import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
 import type { Body, StarSystem } from "@/lib/types";
+import { rngFromSeed } from "@/lib/generator/prng";
 import { PlanetNode } from "./PlanetNode";
 import { BeltRing } from "./BeltRing";
 import { StationGlyph } from "./StationGlyph";
@@ -27,6 +28,8 @@ interface SystemMapProps {
   onSelectBody: (bodyId: string | null) => void;
   /** Battles fought per body id, shown as a badge. */
   battleCounts?: Record<string, number>;
+  /** Bodies whose battles match the sidebar filter; pulsed gold on the map. */
+  highlightedIds?: Set<string> | null;
 }
 
 export function bodyPosition(body: Body): { x: number; y: number } {
@@ -37,7 +40,10 @@ export function bodyPosition(body: Body): { x: number; y: number } {
 }
 
 export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
-  function SystemMap({ system, selectedBodyId, onSelectBody, battleCounts }, ref) {
+  function SystemMap(
+    { system, selectedBodyId, onSelectBody, battleCounts, highlightedIds },
+    ref
+  ) {
     const svgRef = useRef<SVGSVGElement>(null);
     const worldRef = useRef<SVGGElement>(null);
     const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
@@ -68,6 +74,25 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
       }
       return map;
     }, [system]);
+
+    const maxOrbit = Math.max(
+      ...system.bodies.map((b) => b.visual.orbitRadius),
+      200
+    );
+
+    // Seeded nebula clouds drifting behind the system.
+    const nebulae = useMemo(() => {
+      const rng = rngFromSeed(`${system.seed}-nebulae`);
+      return Array.from({ length: 4 }, (_, i) => ({
+        x: (rng() - 0.5) * maxOrbit * 2.2,
+        y: (rng() - 0.5) * maxOrbit * 2.2,
+        rx: maxOrbit * (0.5 + rng() * 0.6),
+        ry: maxOrbit * (0.3 + rng() * 0.45),
+        rotate: rng() * 180,
+        warp: i % 2 === 0,
+        opacity: 0.35 + rng() * 0.3,
+      }));
+    }, [system.seed, maxOrbit]);
 
     useEffect(() => {
       const svg = svgRef.current;
@@ -122,10 +147,7 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
       },
     }));
 
-    const maxOrbit = Math.max(
-      ...system.bodies.map((b) => b.visual.orbitRadius),
-      200
-    );
+    const starR = system.star.radiusPx;
 
     return (
       <svg
@@ -141,6 +163,19 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
             <stop offset="40%" stopColor={system.star.color} stopOpacity="0.25" />
             <stop offset="100%" stopColor={system.star.color} stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="star-core" cx="40%" cy="40%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+            <stop offset="55%" stopColor={system.star.color} />
+            <stop offset="100%" stopColor={system.star.color} stopOpacity="0.85" />
+          </radialGradient>
+          <radialGradient id="nebula-warp">
+            <stop offset="0%" stopColor="var(--eldritch)" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="var(--eldritch)" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="nebula-dust">
+            <stop offset="0%" stopColor="#2c3a6e" stopOpacity="0.14" />
+            <stop offset="100%" stopColor="#2c3a6e" stopOpacity="0" />
+          </radialGradient>
           <filter id="body-glow" x="-80%" y="-80%" width="260%" height="260%">
             <feGaussianBlur stdDeviation="4" result="blur" />
             <feMerge>
@@ -150,18 +185,42 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
           </filter>
         </defs>
         <g ref={worldRef}>
+          {nebulae.map((n, i) => (
+            <ellipse
+              key={`nebula-${i}`}
+              cx={n.x}
+              cy={n.y}
+              rx={n.rx}
+              ry={n.ry}
+              transform={`rotate(${n.rotate} ${n.x} ${n.y})`}
+              fill={n.warp ? "url(#nebula-warp)" : "url(#nebula-dust)"}
+              opacity={n.opacity}
+            />
+          ))}
+
           <Starfield seed={system.seed} radius={maxOrbit + 250} />
 
-          {/* Warp storm overlay */}
+          {/* Warp storm overlay: slow counter-rotating rings of unreality */}
           {system.warpStormIntensity > 0 && (
-            <circle
-              r={maxOrbit + 120}
-              fill="none"
-              stroke="var(--eldritch)"
-              strokeWidth={30 * system.warpStormIntensity}
-              strokeOpacity={0.12 * system.warpStormIntensity}
-              strokeDasharray="160 70"
-            />
+            <g>
+              {Array.from({ length: system.warpStormIntensity }, (_, i) => (
+                <circle
+                  key={i}
+                  r={maxOrbit + 90 + i * 45}
+                  fill="none"
+                  stroke="var(--eldritch)"
+                  strokeWidth={18 + 8 * system.warpStormIntensity}
+                  strokeOpacity={0.10 + 0.04 * system.warpStormIntensity}
+                  strokeDasharray="140 90"
+                  className="animate-spin-slower"
+                  style={{
+                    transformOrigin: "0px 0px",
+                    animationDuration: `${240 + i * 90}s`,
+                    animationDirection: i % 2 ? "reverse" : "normal",
+                  }}
+                />
+              ))}
+            </g>
           )}
 
           {/* Orbit rings */}
@@ -172,21 +231,43 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
               fill="none"
               stroke="var(--border)"
               strokeWidth={1}
-              strokeDasharray="4 6"
+              strokeOpacity={0.85}
+              strokeDasharray="3 7"
+              strokeLinecap="round"
             />
           ))}
 
           {belts.map((belt) => (
-            <BeltRing key={belt.id} belt={belt} seed={system.seed} />
+            <BeltRing
+              key={belt.id}
+              belt={belt}
+              seed={system.seed}
+              highlighted={highlightedIds?.has(belt.id) ?? false}
+            />
           ))}
 
-          {/* Star */}
+          {/* Star: corona rays, layered glow, white-hot core */}
           <g>
-            <circle r={system.star.radiusPx * 3} fill="url(#star-glow)" />
-            <circle r={system.star.radiusPx} fill={system.star.color} />
+            <circle r={starR * 4} fill="url(#star-glow)" />
+            <g
+              className="animate-spin-slower"
+              style={{ transformOrigin: "0px 0px" }}
+            >
+              {Array.from({ length: 12 }, (_, i) => (
+                <path
+                  key={i}
+                  d={`M 0 ${-starR * 0.18} L ${starR * (i % 2 ? 3.4 : 4.6)} 0 L 0 ${starR * 0.18} Z`}
+                  transform={`rotate(${i * 30})`}
+                  fill={system.star.color}
+                  opacity={0.07}
+                />
+              ))}
+            </g>
+            <circle r={starR * 1.25} fill={system.star.color} opacity={0.35} />
+            <circle r={starR} fill="url(#star-core)" />
             {showLabels && (
               <text
-                y={system.star.radiusPx + 18}
+                y={starR + 20}
                 textAnchor="middle"
                 className="fill-muted font-mono text-[11px] uppercase tracking-widest"
               >
@@ -209,6 +290,7 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
               onSelect={onSelectBody}
               showLabel={showLabels}
               battleCount={battleCounts?.[planet.id] ?? 0}
+              highlighted={highlightedIds?.has(planet.id) ?? false}
             />
           ))}
 
@@ -220,6 +302,7 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
               onSelect={onSelectBody}
               showLabel={showLabels}
               battleCount={battleCounts?.[station.id] ?? 0}
+              highlighted={highlightedIds?.has(station.id) ?? false}
             />
           ))}
         </g>

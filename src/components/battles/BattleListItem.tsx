@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Battle, StarSystem } from "@/lib/types";
+import { scoreline } from "@/lib/score";
 
 interface BattleListItemProps {
   battle: Battle;
@@ -37,6 +38,7 @@ export function BattleListItem({
   const factions = [
     ...new Set(battle.participants.map((p) => p.faction).filter(Boolean)),
   ];
+  const score = scoreline(battle.participants, battle.scoreMode);
 
   return (
     <li
@@ -78,6 +80,7 @@ export function BattleListItem({
           </div>
           <div className="mt-0.5 flex flex-wrap gap-x-2 font-mono text-[10px] uppercase tracking-wider text-muted">
             {factions.length > 0 && <span>{factions.join(" vs ")}</span>}
+            {score && <span className="text-foreground/80">{score} VP</span>}
             {location && <span>@ {location.name}</span>}
             {battle.winner && (
               <span className="text-accent">⚜ {battle.winner}</span>

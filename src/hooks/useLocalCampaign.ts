@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import type { Battle } from "@/lib/types";
+import type { Battle, ScoreMode } from "@/lib/types";
 import {
   getLocalCampaignServerSnapshot,
   getLocalCampaignSnapshot,
@@ -23,6 +23,7 @@ export interface BattleInput {
   winner: string;
   participants: Battle["participants"];
   notes: string;
+  scoreMode: ScoreMode;
 }
 
 /** A freshly imported army file, keyed by participant in the save call. */

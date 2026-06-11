@@ -4,7 +4,16 @@ import { useMemo } from "react";
 import type { Body } from "@/lib/types";
 import { rngFromSeed } from "@/lib/generator/prng";
 
-export function BeltRing({ belt, seed }: { belt: Body; seed: string }) {
+export function BeltRing({
+  belt,
+  seed,
+  highlighted,
+}: {
+  belt: Body;
+  seed: string;
+  /** Pulsed when this belt's battles match the sidebar filter. */
+  highlighted?: boolean;
+}) {
   const rocks = useMemo(() => {
     const rng = rngFromSeed(`${seed}-${belt.id}`);
     const count = 90;
@@ -22,6 +31,17 @@ export function BeltRing({ belt, seed }: { belt: Body; seed: string }) {
 
   return (
     <g>
+      {highlighted && (
+        <circle
+          r={belt.visual.orbitRadius}
+          fill="none"
+          stroke="var(--accent)"
+          strokeOpacity={0.5}
+          strokeWidth={26}
+          strokeDasharray="10 14"
+          className="animate-pulse"
+        />
+      )}
       {rocks.map((rock, i) => (
         <circle
           key={i}

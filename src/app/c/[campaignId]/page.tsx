@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { BattleInput, ImportMap } from "@/hooks/useLocalCampaign";
 import { useCampaign } from "@/hooks/useCampaign";
@@ -28,7 +28,13 @@ export default function CampaignPage() {
   const [modal, setModal] = useState<Modal>({ kind: "none" });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [filterMatches, setFilterMatches] = useState<Set<string> | null>(null);
   const mapRef = useRef<SystemMapHandle>(null);
+
+  const handleFilterMatches = useCallback(
+    (ids: Set<string> | null) => setFilterMatches(ids),
+    []
+  );
 
   const { status, system, systemLocked, battles, isAdmin } = campaign;
 
@@ -127,6 +133,7 @@ export default function CampaignPage() {
           selectedBodyId={selectedBodyId}
           onSelectBody={setSelectedBodyId}
           battleCounts={battleCounts}
+          highlightedIds={filterMatches}
         />
 
         {selectedBody && modal.kind === "none" && (
@@ -135,6 +142,8 @@ export default function CampaignPage() {
               system={system}
               body={selectedBody}
               battles={battles}
+              canEdit={campaign.isMod}
+              onSaveBody={(bodyId, patch) => campaign.updateBody(bodyId, patch)}
               onClose={() => setSelectedBodyId(null)}
               onSelectBattle={openBattle}
               onAddBattleHere={(bodyId) =>
@@ -146,7 +155,7 @@ export default function CampaignPage() {
 
         {modal.kind !== "none" && (
           <div
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
             onClick={(e) => {
               if (e.target === e.currentTarget) setModal({ kind: "none" });
             }}
@@ -228,6 +237,7 @@ export default function CampaignPage() {
         onSelectBattle={openBattle}
         onAddBattle={() => setModal({ kind: "create", locationId: null })}
         onMoveBattle={(id, idx) => void campaign.moveBattle(id, idx)}
+        onFilterMatches={handleFilterMatches}
         headerExtra={
           campaign.mode === "remote" ? (
             <button

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Battle, Body, StarSystem } from "@/lib/types";
 import { CLASSIFICATION_INFO } from "@/lib/generator/tables";
 
@@ -7,6 +8,12 @@ interface PlanetPanelProps {
   system: StarSystem;
   body: Body;
   battles: Battle[];
+  /** Admins/moderators may rename and redescribe bodies. */
+  canEdit?: boolean;
+  onSaveBody?: (
+    bodyId: string,
+    patch: { name: string; blurb: string }
+  ) => Promise<void>;
   onClose: () => void;
   onSelectBattle?: (battleId: string) => void;
   onAddBattleHere?: (bodyId: string) => void;
@@ -24,10 +31,18 @@ export function PlanetPanel({
   system,
   body,
   battles,
+  canEdit,
+  onSaveBody,
   onClose,
   onSelectBattle,
   onAddBattleHere,
 }: PlanetPanelProps) {
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftBlurb, setDraftBlurb] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const battlesHere = battles.filter((b) => b.locationId === body.id);
   const parent = body.parentId
     ? system.bodies.find((b) => b.id === body.parentId)
@@ -36,8 +51,33 @@ export function PlanetPanel({
     ? CLASSIFICATION_INFO[body.classification].label
     : KIND_LABELS[body.kind];
 
+  function startEdit() {
+    setDraftName(body.name);
+    setDraftBlurb(body.blurb);
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!onSaveBody || !draftName.trim()) return;
+    setSaving(true);
+    setEditError(null);
+    try {
+      await onSaveBody(body.id, {
+        name: draftName.trim(),
+        blurb: draftBlurb.trim(),
+      });
+      setEditing(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <aside className="pointer-events-auto flex max-h-[70vh] w-80 flex-col overflow-y-auto rounded border border-border bg-surface/95 p-4 shadow-xl backdrop-blur">
+    <aside className="gothic-panel pointer-events-auto flex max-h-[70vh] w-80 flex-col overflow-y-auto rounded p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-lg text-accent">{body.name}</h3>
@@ -46,30 +86,90 @@ export function PlanetPanel({
             {parent ? ` · orbiting ${parent.name}` : ""}
           </p>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close panel"
-          className="rounded px-2 py-0.5 text-muted hover:bg-surface-raised hover:text-foreground"
-        >
-          ✕
-        </button>
+        <div className="flex items-center gap-1">
+          {canEdit && !editing && (
+            <button
+              onClick={startEdit}
+              title="Amend name and description"
+              aria-label="Edit this body"
+              className="rounded px-2 py-0.5 text-muted hover:bg-surface-raised hover:text-accent"
+            >
+              ✎
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            aria-label="Close panel"
+            className="rounded px-2 py-0.5 text-muted hover:bg-surface-raised hover:text-foreground"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
-      {body.tags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {body.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded border border-danger/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-danger"
-            >
-              {tag}
+      {editing ? (
+        <form onSubmit={saveEdit} className="mt-3 flex flex-col gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
+              Name
             </span>
-          ))}
-        </div>
-      )}
+            <input
+              className="w-full rounded border border-border bg-surface-raised px-2 py-1.5 text-sm"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              required
+              autoFocus
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
+              Description
+            </span>
+            <textarea
+              className="min-h-24 w-full rounded border border-border bg-surface-raised px-2 py-1.5 text-sm"
+              value={draftBlurb}
+              onChange={(e) => setDraftBlurb(e.target.value)}
+            />
+          </label>
+          {editError && <p className="text-sm text-danger">{editError}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="rounded border border-border px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-foreground"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !draftName.trim()}
+              className="rounded border border-accent-dim bg-accent-dim/20 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-accent hover:bg-accent-dim/40 disabled:opacity-50"
+            >
+              {saving ? "Inscribing…" : "Save"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {body.tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {body.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded border border-danger/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-danger"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
 
-      {body.blurb && (
-        <p className="mt-3 text-sm italic text-foreground/90">{body.blurb}</p>
+          {body.blurb && (
+            <p className="mt-3 text-sm italic text-foreground/90">
+              {body.blurb}
+            </p>
+          )}
+        </>
       )}
 
       <div className="mt-4 border-t border-border pt-3">

@@ -11,6 +11,7 @@ export default function JoinPage() {
   const code = params.code;
 
   const [displayName, setDisplayName] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export default function JoinPage() {
     setError(null);
     try {
       await ensureSession();
-      const campaign = await joinCampaign(code, displayName);
+      const campaign = await joinCampaign(code, displayName, password);
       router.push(`/c/${campaign.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -49,7 +50,7 @@ export default function JoinPage() {
       </div>
       <form
         onSubmit={submit}
-        className="flex w-full max-w-sm flex-col gap-3 rounded border border-border bg-surface p-5"
+        className="gothic-panel flex w-full max-w-sm flex-col gap-3 rounded p-5"
       >
         <label className="flex flex-col gap-1">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
@@ -63,6 +64,22 @@ export default function JoinPage() {
             required
             autoFocus
           />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            Password · Optional
+          </span>
+          <input
+            type="password"
+            className="w-full rounded border border-border bg-surface-raised px-3 py-2 text-sm"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Protects your name in this campaign"
+          />
+          <span className="text-[11px] leading-snug text-muted">
+            Set one and only you can sign in under this name. If the name is
+            already protected, enter its password.
+          </span>
         </label>
         {error && <p className="text-sm text-danger">{error}</p>}
         <button

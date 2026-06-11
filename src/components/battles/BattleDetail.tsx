@@ -3,6 +3,7 @@
 import type { Battle, StarSystem } from "@/lib/types";
 import type { ArmyList } from "@/lib/rosters/types";
 import { downloadArmyFile } from "@/lib/rosters/download";
+import { participantVp } from "@/lib/score";
 import { RosterView } from "./RosterView";
 
 interface BattleDetailProps {
@@ -33,7 +34,7 @@ export function BattleDetail({
     : null;
 
   return (
-    <div className="flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded border border-border bg-surface p-5 shadow-2xl">
+    <div className="gothic-panel flex max-h-[85vh] w-full max-w-lg flex-col gap-3 overflow-y-auto rounded p-5">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-widest text-muted">
@@ -94,15 +95,30 @@ export function BattleDetail({
           </h4>
           <table className="mt-1 w-full text-sm">
             <tbody>
-              {battle.participants.map((p) => (
-                <tr key={p.key} className="border-t border-border/60">
-                  <td className="py-1 pr-2">{p.playerName || "—"}</td>
-                  <td className="py-1 pr-2 text-muted">{p.faction || "—"}</td>
-                  <td className="py-1 text-right font-mono">
-                    {p.points !== null ? `${p.points} pts` : ""}
-                  </td>
-                </tr>
-              ))}
+              {battle.participants.map((p) => {
+                const vp = participantVp(p, battle.scoreMode);
+                return (
+                  <tr key={p.key} className="border-t border-border/60">
+                    <td className="py-1 pr-2">{p.playerName || "—"}</td>
+                    <td className="py-1 pr-2 text-muted">{p.faction || "—"}</td>
+                    <td className="py-1 pr-2 text-right font-mono text-muted">
+                      {p.points !== null ? `${p.points} pts` : ""}
+                    </td>
+                    <td className="py-1 text-right font-mono">
+                      {vp !== null && (
+                        <span className="text-accent">
+                          {vp} VP
+                          {battle.scoreMode === "detailed" && (
+                            <span className="ml-1 text-[11px] text-muted">
+                              (P {p.vpPrimary ?? 0} · S {p.vpSecondary ?? 0})
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

@@ -20,11 +20,13 @@ realtime sync.
 1. Create a free project at [supabase.com](https://supabase.com).
 2. **Enable anonymous sign-ins**: Dashboard → Authentication → Sign In / Up →
    enable "Allow anonymous sign-ins".
-3. **Apply the schema**: Dashboard → SQL Editor → paste the contents of
-   [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql) →
-   Run. This creates the tables, row-level-security policies, the
-   `create_campaign` / `join_campaign` functions, the `army-files` storage
-   bucket, and realtime publications.
+3. **Apply the schema**: Dashboard → SQL Editor → paste and run each file in
+   [supabase/migrations/](supabase/migrations/) **in numeric order**
+   (`0001_…`, `0002_…`, `0003_…`). Together they create the tables,
+   row-level-security policies, the `create_campaign` / `join_campaign`
+   functions, optional name passwords, the `army-files` storage bucket, and
+   realtime publications. When new migrations appear later, run only the new
+   ones.
 4. **Configure the app**: copy `.env.example` to `.env.local` and fill in the
    Project URL and anon/public key from Project Settings → API. Restart
    `npm run dev`.
@@ -45,4 +47,17 @@ realtime sync.
 | member | Commander | Add battles; edit/delete/reorder their own battles |
 
 The campaign creator is the admin. Enforcement is in Postgres RLS, not just
-the UI.
+the UI. Admins and moderators can also rename planets and rewrite their
+descriptions from the planet panel on the map.
+
+## Name passwords
+
+Joining a campaign needs only an invite code and a display name. The
+password field is optional, when2meet-style:
+
+- Set a password when you first join and your name is protected: signing in
+  with that name from any device then requires the password.
+- A name without a password can be claimed by anyone who types it (that's
+  also how you move to a new device without a password).
+- Passwords are bcrypt-hashed in a table no client can read; only the
+  `create_campaign` / `join_campaign` functions touch it.

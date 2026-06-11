@@ -9,6 +9,8 @@ interface StationGlyphProps {
   onSelect: (id: string) => void;
   showLabel: boolean;
   battleCount: number;
+  /** Pulsed when this body's battles match the sidebar filter. */
+  highlighted?: boolean;
 }
 
 /** Free-floating station or point of interest (space hulk, rok, gate...). */
@@ -18,6 +20,7 @@ export function StationGlyph({
   onSelect,
   showLabel,
   battleCount,
+  highlighted,
 }: StationGlyphProps) {
   const { x, y } = bodyPosition(body);
   const s = body.visual.sizePx;
@@ -32,6 +35,27 @@ export function StationGlyph({
         onSelect(body.id);
       }}
     >
+      {highlighted && !selected && (
+        <circle
+          r={s + 9}
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth={2}
+          strokeDasharray="7 5"
+          className="animate-pulse"
+        />
+      )}
+      {hostile && !selected && (
+        <circle
+          r={s + 5}
+          fill="none"
+          stroke="var(--danger)"
+          strokeOpacity={0.4}
+          strokeWidth={1}
+          strokeDasharray="3 4"
+          className="animate-pulse"
+        />
+      )}
       {selected && (
         <circle
           r={s + 7}
@@ -65,7 +89,7 @@ export function StationGlyph({
       </g>
       {battleCount > 0 && (
         <g transform={`translate(${s + 4}, ${-s - 4})`}>
-          <circle r={7} fill="var(--danger)" />
+          <circle r={7} fill="var(--danger)" stroke="#000" strokeOpacity={0.4} />
           <text
             textAnchor="middle"
             dy="3.5"
@@ -79,7 +103,12 @@ export function StationGlyph({
         <text
           y={s + 14}
           textAnchor="middle"
-          className="pointer-events-none fill-muted font-mono text-[9px] tracking-wider"
+          paintOrder="stroke"
+          stroke="var(--background)"
+          strokeWidth={3}
+          className={`pointer-events-none font-mono text-[9px] tracking-wider ${
+            highlighted ? "fill-accent" : "fill-muted"
+          }`}
         >
           {body.name}
         </text>

@@ -11,6 +11,8 @@ interface PlanetNodeProps {
   onSelect: (id: string) => void;
   showLabel: boolean;
   battleCount: number;
+  /** Pulsed when this body's battles match the sidebar filter. */
+  highlighted?: boolean;
 }
 
 export function PlanetNode({
@@ -21,6 +23,7 @@ export function PlanetNode({
   onSelect,
   showLabel,
   battleCount,
+  highlighted,
 }: PlanetNodeProps) {
   const { x, y } = bodyPosition(planet);
   const r = planet.visual.sizePx;
@@ -35,16 +38,46 @@ export function PlanetNode({
           <stop offset="0%" stopColor={highlight} />
           <stop offset="100%" stopColor={base} />
         </radialGradient>
+        <radialGradient id={`${gradientId}-atmo`}>
+          <stop offset="62%" stopColor={highlight} stopOpacity="0" />
+          <stop offset="84%" stopColor={highlight} stopOpacity="0.22" />
+          <stop offset="100%" stopColor={highlight} stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id={`${gradientId}-shade`} x1="0%" y1="0%" x2="95%" y2="95%">
+          <stop offset="50%" stopColor="#000" stopOpacity="0" />
+          <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
+        </linearGradient>
       </defs>
 
-      {selected && (
+      {highlighted && !selected && (
         <circle
-          r={r + 8}
+          r={r + 11}
           fill="none"
           stroke="var(--accent)"
-          strokeWidth={1.5}
+          strokeWidth={2}
+          strokeDasharray="7 5"
           className="animate-pulse"
         />
+      )}
+
+      {selected && (
+        <>
+          <circle
+            r={r + 8}
+            fill="none"
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            className="animate-pulse"
+          />
+          <circle
+            r={r + 13}
+            fill="none"
+            stroke="var(--accent)"
+            strokeOpacity={0.35}
+            strokeWidth={1}
+            strokeDasharray="2 5"
+          />
+        </>
       )}
 
       <g
@@ -55,14 +88,30 @@ export function PlanetNode({
           onSelect(planet.id);
         }}
       >
+        {/* atmosphere halo */}
+        <circle r={r * 1.45} fill={`url(#${gradientId}-atmo)`} />
+        {planet.visual.hasRings && (
+          // Far half of the rings, drawn behind the planet disc.
+          <ellipse
+            rx={r * 1.95}
+            ry={r * 0.62}
+            fill="none"
+            stroke={highlight}
+            strokeOpacity={0.28}
+            strokeWidth={3.5}
+            transform="rotate(-20)"
+          />
+        )}
         <circle r={r} fill={`url(#${gradientId})`} />
+        {/* day/night terminator shading */}
+        <circle r={r} fill={`url(#${gradientId}-shade)`} />
         {planet.visual.hasRings && (
           <ellipse
             rx={r * 1.8}
             ry={r * 0.5}
             fill="none"
             stroke={highlight}
-            strokeOpacity={0.5}
+            strokeOpacity={0.55}
             strokeWidth={1.5}
             transform="rotate(-20)"
           />
@@ -86,6 +135,13 @@ export function PlanetNode({
               <circle r={moon.visual.sizePx + 3} fill="none" stroke="var(--accent)" strokeWidth={1} />
             )}
             <circle r={moon.visual.sizePx} fill={moon.visual.palette[0]} />
+            <circle
+              r={moon.visual.sizePx}
+              fill="none"
+              stroke="#000"
+              strokeOpacity={0.3}
+              strokeWidth={0.5}
+            />
           </g>
         );
       })}
@@ -131,7 +187,7 @@ export function PlanetNode({
 
       {battleCount > 0 && (
         <g transform={`translate(${r * 0.9}, ${-r * 0.9})`}>
-          <circle r={7} fill="var(--danger)" />
+          <circle r={7} fill="var(--danger)" stroke="#000" strokeOpacity={0.4} />
           <text
             textAnchor="middle"
             dy="3.5"
@@ -146,7 +202,12 @@ export function PlanetNode({
         <text
           y={r + 16}
           textAnchor="middle"
-          className="pointer-events-none fill-foreground font-mono text-[10px] tracking-wider"
+          paintOrder="stroke"
+          stroke="var(--background)"
+          strokeWidth={3}
+          className={`pointer-events-none font-mono text-[10px] tracking-wider ${
+            highlighted ? "fill-accent" : "fill-foreground"
+          }`}
         >
           {planet.name}
         </text>

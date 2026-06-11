@@ -43,6 +43,10 @@ export interface CampaignController {
   deleteBattle: (id: string) => Promise<void>;
   moveBattle: (id: string, targetIndex: number) => Promise<void>;
   lockSystem: (system: StarSystem) => Promise<void>;
+  updateBody: (
+    bodyId: string,
+    patch: { name: string; blurb: string }
+  ) => Promise<void>;
   setRole: (playerId: string, role: api.Role) => Promise<void>;
   removePlayer: (playerId: string) => Promise<void>;
   refresh: () => Promise<void>;
@@ -150,6 +154,24 @@ function useRemoteCampaign(campaignId: string | null): CampaignController {
           const players = [...rest, player];
           const me = players.find((p) => p.id === d.myPlayerId);
           return { ...d, players, myRole: me?.role ?? d.myRole };
+        });
+      })
+      .on("postgres_changes", opts("system_bodies"), (payload) => {
+        // Inserts arrive with the lock-in refresh; here we only care about
+        // mods renaming/redescribing a body.
+        if (payload.eventType !== "UPDATE") return;
+        const row = payload.new as { id: string; name: string; blurb: string };
+        setData((d) => {
+          if (!d?.system) return d;
+          return {
+            ...d,
+            system: {
+              ...d.system,
+              bodies: d.system.bodies.map((b) =>
+                b.id === row.id ? { ...b, name: row.name, blurb: row.blurb } : b
+              ),
+            },
+          };
         });
       })
       .on(
@@ -316,6 +338,30 @@ function useRemoteCampaign(campaignId: string | null): CampaignController {
     [campaignId, refresh]
   );
 
+  const updateBody = useCallback(
+    async (bodyId: string, patch: { name: string; blurb: string }) => {
+      setData((d) => {
+        if (!d?.system) return d;
+        return {
+          ...d,
+          system: {
+            ...d.system,
+            bodies: d.system.bodies.map((b) =>
+              b.id === bodyId ? { ...b, ...patch } : b
+            ),
+          },
+        };
+      });
+      try {
+        await api.updateBodyRow(bodyId, patch);
+      } catch (e) {
+        await refresh();
+        throw e;
+      }
+    },
+    [refresh]
+  );
+
   const setRole = useCallback(
     async (playerId: string, role: api.Role) => {
       setData((d) =>
@@ -374,6 +420,7 @@ function useRemoteCampaign(campaignId: string | null): CampaignController {
     deleteBattle,
     moveBattle,
     lockSystem,
+    updateBody,
     setRole,
     removePlayer,
     refresh,
@@ -386,6 +433,25 @@ function useLocalController(active: boolean): CampaignController {
   const lockSystem = useCallback(async (system: StarSystem) => {
     updateLocalCampaign((c) => ({ ...c, system, systemLocked: true }));
   }, []);
+
+  const updateBody = useCallback(
+    async (bodyId: string, patch: { name: string; blurb: string }) => {
+      updateLocalCampaign((c) =>
+        c.system
+          ? {
+              ...c,
+              system: {
+                ...c.system,
+                bodies: c.system.bodies.map((b) =>
+                  b.id === bodyId ? { ...b, ...patch } : b
+                ),
+              },
+            }
+          : c
+      );
+    },
+    []
+  );
 
   return {
     mode: "local",
@@ -408,6 +474,7 @@ function useLocalController(active: boolean): CampaignController {
     deleteBattle: async (id) => local.deleteBattle(id),
     moveBattle: async (id, idx) => local.moveBattle(id, idx),
     lockSystem,
+    updateBody,
     setRole: noopAsync,
     removePlayer: noopAsync,
     refresh: noopAsync,

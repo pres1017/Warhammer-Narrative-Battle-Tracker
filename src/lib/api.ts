@@ -3,6 +3,7 @@ import type {
   Body,
   GeneratorParams,
   Participant,
+  ScoreMode,
   Star,
   StarSystem,
 } from "./types";
@@ -56,6 +57,7 @@ export interface BattleRow {
   winner: string;
   participants: Participant[];
   notes: string;
+  score_mode: ScoreMode | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -72,6 +74,7 @@ export function battleFromRow(row: BattleRow): Battle {
     winner: row.winner,
     participants: row.participants ?? [],
     notes: row.notes,
+    scoreMode: row.score_mode ?? "simple",
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -116,11 +119,13 @@ export function armyListFromRow(row: ArmyListRow): ArmyList {
 
 export async function createCampaign(
   name: string,
-  displayName: string
+  displayName: string,
+  password?: string
 ): Promise<CampaignInfo> {
   const { data, error } = await getSupabase().rpc("create_campaign", {
     p_name: name,
     p_display_name: displayName,
+    p_password: password?.trim() || null,
   });
   if (error) throw new Error(error.message);
   return {
@@ -133,11 +138,13 @@ export async function createCampaign(
 
 export async function joinCampaign(
   inviteCode: string,
-  displayName: string
+  displayName: string,
+  password?: string
 ): Promise<CampaignInfo> {
   const { data, error } = await getSupabase().rpc("join_campaign", {
     p_invite_code: inviteCode,
     p_display_name: displayName,
+    p_password: password?.trim() || null,
   });
   if (error) throw new Error(error.message);
   return {
@@ -343,6 +350,7 @@ export interface BattleSaveInput {
   winner: string;
   participants: Participant[];
   notes: string;
+  scoreMode: ScoreMode;
 }
 
 export async function insertBattle(
@@ -376,6 +384,7 @@ export async function insertBattle(
       winner: input.winner,
       participants,
       notes: input.notes,
+      score_mode: input.scoreMode,
       created_by: myPlayerId,
     })
     .select()
@@ -422,6 +431,7 @@ export async function updateBattleRow(
       winner: input.winner,
       participants,
       notes: input.notes,
+      score_mode: input.scoreMode,
       updated_at: new Date().toISOString(),
     })
     .eq("id", battleId)
@@ -447,6 +457,20 @@ export async function moveBattleRow(
     .from("battles")
     .update({ sort_key: sortKey, updated_at: new Date().toISOString() })
     .eq("id", battleId);
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------- bodies
+
+/** Rename/redescribe a system body (RLS allows admins and moderators). */
+export async function updateBodyRow(
+  bodyId: string,
+  patch: { name: string; blurb: string }
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("system_bodies")
+    .update(patch)
+    .eq("id", bodyId);
   if (error) throw new Error(error.message);
 }
 

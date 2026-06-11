@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -27,6 +27,11 @@ interface BattleSidebarProps {
   onSelectBattle: (id: string) => void;
   onAddBattle: () => void;
   onMoveBattle: (id: string, targetIndex: number) => void;
+  /**
+   * Reports the body ids of battles matching the active filter (null when
+   * no filter is set) so the map can highlight contested worlds.
+   */
+  onFilterMatches?: (bodyIds: Set<string> | null) => void;
   /** Extra header content (e.g. roster button). */
   headerExtra?: React.ReactNode;
 }
@@ -39,6 +44,7 @@ export function BattleSidebar({
   onSelectBattle,
   onAddBattle,
   onMoveBattle,
+  onFilterMatches,
   headerExtra,
 }: BattleSidebarProps) {
   const [filter, setFilter] = useState("");
@@ -64,6 +70,25 @@ export function BattleSidebar({
     });
   }, [sorted, filter, system]);
 
+  // Stable serialization so the parent setState only fires when the actual
+  // match set changes (battles arrive as fresh array refs every render).
+  const matchKey = useMemo(() => {
+    if (!filter.trim()) return null;
+    return [...new Set(filtered.map((b) => b.locationId).filter(Boolean))]
+      .sort()
+      .join(",");
+  }, [filter, filtered]);
+  const lastMatchKey = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (lastMatchKey.current === matchKey) return;
+    lastMatchKey.current = matchKey;
+    onFilterMatches?.(
+      matchKey === null
+        ? null
+        : new Set(matchKey ? matchKey.split(",") : [])
+    );
+  }, [matchKey, onFilterMatches]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -79,7 +104,7 @@ export function BattleSidebar({
   const reorderDisabled = filter.trim().length > 0;
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-surface/80">
+    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-surface/75 shadow-[inset_1px_0_0_rgba(201,162,39,0.06)] backdrop-blur-md">
       <div className="border-b border-border p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base text-accent">Battle Chronicle</h2>

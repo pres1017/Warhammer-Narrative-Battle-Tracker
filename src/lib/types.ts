@@ -80,7 +80,16 @@ export interface Participant {
   faction: string;
   points: number | null;
   armyListId: string | null;
+  /** Final victory points (simple score mode). */
+  vp?: number | null;
+  /** Primary-objective points (detailed score mode). */
+  vpPrimary?: number | null;
+  /** Secondary-objective points (detailed score mode). */
+  vpSecondary?: number | null;
 }
+
+/** How a battle's final score is recorded. */
+export type ScoreMode = "simple" | "detailed";
 
 export interface Battle {
   id: string;
@@ -95,6 +104,8 @@ export interface Battle {
   winner: string;
   participants: Participant[];
   notes: string;
+  /** Absent on records saved before scoring existed; treated as "simple". */
+  scoreMode?: ScoreMode;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

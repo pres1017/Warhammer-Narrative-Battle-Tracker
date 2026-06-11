@@ -30,7 +30,10 @@
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(1100px 700px at 75% -10%, rgba(109, 63, 168, 0.09), transparent 60%),
+    radial-gradient(900px 600px at 5% 110%, rgba(201, 162, 39, 0.05), transparent 55%),
+    var(--background);
   color: var(--foreground);
   font-family: var(--font-body), serif;
 }
@@ -46,4 +49,56 @@ h4 {
 ::selection {
   background: var(--accent-dim);
   color: #fff;
+}
+
+/* Heavy dark-gothic panel chrome shared by modals and overlays. */
+.gothic-panel {
+  background: linear-gradient(180deg, rgba(24, 24, 38, 0.96), rgba(13, 13, 22, 0.96));
+  border: 1px solid var(--border);
+  box-shadow:
+    0 12px 48px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(201, 162, 39, 0.12),
+    0 0 0 1px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+.animate-spin-slower {
+  animation: spin-slow 180s linear infinite;
+}
+
+/* Slim themed scrollbars for the chronicle and panels. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+  border: 2px solid var(--background);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
 }
