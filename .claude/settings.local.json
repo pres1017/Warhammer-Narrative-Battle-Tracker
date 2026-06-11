@@ -30,7 +30,11 @@
       "PowerShell(Invoke-WebRequest -Uri \"http://localhost:3000\" -UseBasicParsing -TimeoutSec 15)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx vitest run 2>&1 | Select-Object -Last 15; npx tsc --noEmit)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm run build 2>&1 | Select-Object -Last 25)",
-      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx eslint src --max-warnings 0 2>&1 | Select-Object -Last 10)"
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx eslint src --max-warnings 0 2>&1 | Select-Object -Last 10)",
+      "PowerShell(Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force)",
+      "PowerShell(Get-ExecutionPolicy -List)",
+      "PowerShell(git add .claude/settings.local.json)",
+      "PowerShell(git push -u origin main)"
     ]
   }
 }
