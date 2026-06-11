@@ -1,6 +1,7 @@
 "use client";
 
-import type { Battle, StarSystem } from "@/lib/types";
+import { useEffect, useRef, useState } from "react";
+import type { Battle, BattlePhoto, StarSystem } from "@/lib/types";
 import type { ArmyList } from "@/lib/rosters/types";
 import { downloadArmyFile } from "@/lib/rosters/download";
 import { participantVp } from "@/lib/score";
@@ -12,10 +13,59 @@ interface BattleDetailProps {
   armyLists: ArmyList[];
   index: number;
   canEdit: boolean;
+  photos: BattlePhoto[];
+  canDeletePhoto: (photo: BattlePhoto) => boolean;
+  onAddPhoto: (file: File) => Promise<void>;
+  onDeletePhoto: (photoId: string) => void;
+  /** Resolves a photo to a displayable URL (signed URL or data URI). */
+  photoSrc: (photo: BattlePhoto) => Promise<string>;
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
   onFocusLocation?: (bodyId: string) => void;
+}
+
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+function PhotoThumb({
+  photo,
+  photoSrc,
+  onOpen,
+}: {
+  photo: BattlePhoto;
+  photoSrc: (photo: BattlePhoto) => Promise<string>;
+  onOpen: (src: string) => void;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    photoSrc(photo)
+      .then((url) => {
+        if (!cancelled) setSrc(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [photo, photoSrc]);
+
+  if (!src) {
+    return (
+      <div className="flex h-20 w-20 items-center justify-center rounded border border-border bg-surface-raised font-mono text-[9px] uppercase text-muted">
+        …
+      </div>
+    );
+  }
+  return (
+    <button onClick={() => onOpen(src)} className="group relative">
+      {/* eslint-disable-next-line @next/next/no-img-element -- signed/data URLs, not static assets */}
+      <img
+        src={src}
+        alt={photo.caption || "Battle photo"}
+        className="h-20 w-20 rounded border border-border object-cover transition-transform group-hover:scale-105"
+      />
+    </button>
+  );
 }
 
 export function BattleDetail({
@@ -24,11 +74,39 @@ export function BattleDetail({
   armyLists,
   index,
   canEdit,
+  photos,
+  canDeletePhoto,
+  onAddPhoto,
+  onDeletePhoto,
+  photoSrc,
   onEdit,
   onDelete,
   onClose,
   onFocusLocation,
 }: BattleDetailProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_PHOTO_BYTES) {
+      setPhotoError("Photos are limited to 8 MB.");
+      return;
+    }
+    setUploading(true);
+    setPhotoError(null);
+    try {
+      await onAddPhoto(file);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setUploading(false);
+    }
+  }
   const location = battle.locationId
     ? system.bodies.find((b) => b.id === battle.locationId)
     : null;
@@ -155,6 +233,65 @@ export function BattleDetail({
           <p className="mt-1 whitespace-pre-wrap text-sm italic text-foreground/90">
             {battle.notes}
           </p>
+        </div>
+      )}
+
+      <div>
+        <div className="flex items-center justify-between">
+          <h4 className="font-mono text-[10px] uppercase tracking-widest text-muted">
+            Pict-Captures · {photos.length}
+          </h4>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="rounded border border-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted hover:text-accent disabled:opacity-50"
+          >
+            {uploading ? "Transmitting…" : "+ Add Photo"}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => void pickPhoto(e)}
+            className="hidden"
+          />
+        </div>
+        {photoError && <p className="mt-1 text-sm text-danger">{photoError}</p>}
+        {photos.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {photos.map((photo) => (
+              <div key={photo.id} className="relative">
+                <PhotoThumb
+                  photo={photo}
+                  photoSrc={photoSrc}
+                  onOpen={setLightbox}
+                />
+                {canDeletePhoto(photo) && (
+                  <button
+                    onClick={() => onDeletePhoto(photo.id)}
+                    aria-label="Delete photo"
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-surface text-[10px] text-muted hover:text-danger"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6"
+          onClick={() => setLightbox(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- signed/data URLs, not static assets */}
+          <img
+            src={lightbox}
+            alt="Battle photo"
+            className="max-h-full max-w-full rounded border border-border shadow-2xl"
+          />
         </div>
       )}
 

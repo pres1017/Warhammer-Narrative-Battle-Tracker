@@ -1,6 +1,10 @@
 import type {
   Battle,
+  BattlePhoto,
   Body,
+  CampaignSettings,
+  CrusadeForce,
+  CrusadeUnit,
   GeneratorParams,
   Participant,
   ScoreMode,
@@ -25,6 +29,7 @@ export interface CampaignInfo {
   name: string;
   inviteCode: string;
   systemLocked: boolean;
+  settings: CampaignSettings;
 }
 
 export interface CampaignData {
@@ -33,6 +38,9 @@ export interface CampaignData {
   system: StarSystem | null;
   battles: Battle[];
   armyLists: ArmyList[];
+  photos: BattlePhoto[];
+  crusadeForces: CrusadeForce[];
+  crusadeUnits: CrusadeUnit[];
   myPlayerId: string | null;
   myRole: Role | null;
 }
@@ -91,6 +99,115 @@ interface BodyRow {
   visual: Body["visual"];
   blurb: string;
   tags: string[];
+  controlled_by: string | null;
+}
+
+interface CampaignRow {
+  id: string;
+  name: string;
+  invite_code: string;
+  system_locked: boolean;
+  territory_enabled: boolean | null;
+  crusade_enabled: boolean | null;
+}
+
+export function campaignFromRow(row: CampaignRow): CampaignInfo {
+  return {
+    id: row.id,
+    name: row.name,
+    inviteCode: row.invite_code,
+    systemLocked: row.system_locked,
+    settings: {
+      territoryEnabled: row.territory_enabled ?? false,
+      crusadeEnabled: row.crusade_enabled ?? false,
+    },
+  };
+}
+
+export interface BattlePhotoRow {
+  id: string;
+  battle_id: string;
+  storage_path: string;
+  caption: string;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export function photoFromRow(row: BattlePhotoRow): BattlePhoto {
+  return {
+    id: row.id,
+    battleId: row.battle_id,
+    storagePath: row.storage_path,
+    caption: row.caption,
+    uploadedBy: row.uploaded_by,
+    createdAt: row.created_at,
+  };
+}
+
+export interface CrusadeForceRow {
+  id: string;
+  player_id: string;
+  name: string;
+  faction: string;
+  notes: string;
+  created_at: string;
+}
+
+export function forceFromRow(row: CrusadeForceRow): CrusadeForce {
+  return {
+    id: row.id,
+    playerId: row.player_id,
+    name: row.name,
+    faction: row.faction,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export interface CrusadeUnitRow {
+  id: string;
+  force_id: string;
+  name: string;
+  role: string;
+  points: number | null;
+  xp: number;
+  battles_played: number;
+  units_destroyed: number;
+  honours: string[];
+  scars: string[];
+  notes: string;
+  created_at: string;
+}
+
+export function unitFromRow(row: CrusadeUnitRow): CrusadeUnit {
+  return {
+    id: row.id,
+    forceId: row.force_id,
+    name: row.name,
+    role: row.role,
+    points: row.points,
+    xp: row.xp,
+    battlesPlayed: row.battles_played,
+    unitsDestroyed: row.units_destroyed,
+    honours: row.honours ?? [],
+    scars: row.scars ?? [],
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+function unitToColumns(patch: Partial<CrusadeUnit>): Record<string, unknown> {
+  const cols: Record<string, unknown> = {};
+  if (patch.name !== undefined) cols.name = patch.name;
+  if (patch.role !== undefined) cols.role = patch.role;
+  if (patch.points !== undefined) cols.points = patch.points;
+  if (patch.xp !== undefined) cols.xp = patch.xp;
+  if (patch.battlesPlayed !== undefined) cols.battles_played = patch.battlesPlayed;
+  if (patch.unitsDestroyed !== undefined) cols.units_destroyed = patch.unitsDestroyed;
+  if (patch.honours !== undefined) cols.honours = patch.honours;
+  if (patch.scars !== undefined) cols.scars = patch.scars;
+  if (patch.notes !== undefined) cols.notes = patch.notes;
+  return cols;
 }
 
 export interface ArmyListRow {
@@ -128,12 +245,7 @@ export async function createCampaign(
     p_password: password?.trim() || null,
   });
   if (error) throw new Error(error.message);
-  return {
-    id: data.id,
-    name: data.name,
-    inviteCode: data.invite_code,
-    systemLocked: data.system_locked,
-  };
+  return campaignFromRow(data as CampaignRow);
 }
 
 export async function joinCampaign(
@@ -147,12 +259,7 @@ export async function joinCampaign(
     p_password: password?.trim() || null,
   });
   if (error) throw new Error(error.message);
-  return {
-    id: data.id,
-    name: data.name,
-    inviteCode: data.invite_code,
-    systemLocked: data.system_locked,
-  };
+  return campaignFromRow(data as CampaignRow);
 }
 
 // ---------------------------------------------------------------- fetch
@@ -162,22 +269,33 @@ export async function fetchCampaignData(
   authUserId: string
 ): Promise<CampaignData> {
   const supabase = getSupabase();
-  const [campaignRes, playersRes, systemRes, battlesRes, listsRes] =
-    await Promise.all([
-      supabase.from("campaigns").select("*").eq("id", campaignId).single(),
-      supabase.from("players").select("*").eq("campaign_id", campaignId),
-      supabase
-        .from("systems")
-        .select("*, system_bodies(*)")
-        .eq("campaign_id", campaignId)
-        .maybeSingle(),
-      supabase
-        .from("battles")
-        .select("*")
-        .eq("campaign_id", campaignId)
-        .order("sort_key"),
-      supabase.from("army_lists").select("*").eq("campaign_id", campaignId),
-    ]);
+  const [
+    campaignRes,
+    playersRes,
+    systemRes,
+    battlesRes,
+    listsRes,
+    photosRes,
+    forcesRes,
+    unitsRes,
+  ] = await Promise.all([
+    supabase.from("campaigns").select("*").eq("id", campaignId).single(),
+    supabase.from("players").select("*").eq("campaign_id", campaignId),
+    supabase
+      .from("systems")
+      .select("*, system_bodies(*)")
+      .eq("campaign_id", campaignId)
+      .maybeSingle(),
+    supabase
+      .from("battles")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .order("sort_key"),
+    supabase.from("army_lists").select("*").eq("campaign_id", campaignId),
+    supabase.from("battle_photos").select("*").eq("campaign_id", campaignId),
+    supabase.from("crusade_forces").select("*").eq("campaign_id", campaignId),
+    supabase.from("crusade_units").select("*").eq("campaign_id", campaignId),
+  ]);
 
   if (campaignRes.error) {
     throw new Error(
@@ -208,6 +326,7 @@ export async function fetchCampaignData(
           visual: b.visual,
           blurb: b.blurb,
           tags: b.tags ?? [],
+          controlledBy: b.controlled_by ?? "",
         })
       )
       .sort((a, b) => a.orbitIndex - b.orbitIndex);
@@ -221,19 +340,35 @@ export async function fetchCampaignData(
   }
 
   return {
-    campaign: {
-      id: campaignRes.data.id,
-      name: campaignRes.data.name,
-      inviteCode: campaignRes.data.invite_code,
-      systemLocked: campaignRes.data.system_locked,
-    },
+    campaign: campaignFromRow(campaignRes.data as CampaignRow),
     players,
     system,
     battles: ((battlesRes.data ?? []) as BattleRow[]).map(battleFromRow),
     armyLists: ((listsRes.data ?? []) as ArmyListRow[]).map(armyListFromRow),
+    photos: ((photosRes.data ?? []) as BattlePhotoRow[]).map(photoFromRow),
+    crusadeForces: ((forcesRes.data ?? []) as CrusadeForceRow[]).map(
+      forceFromRow
+    ),
+    crusadeUnits: ((unitsRes.data ?? []) as CrusadeUnitRow[]).map(unitFromRow),
     myPlayerId: me?.id ?? null,
     myRole: me?.role ?? null,
   };
+}
+
+// ---------------------------------------------------------------- settings
+
+export async function updateCampaignSettings(
+  campaignId: string,
+  settings: CampaignSettings
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("campaigns")
+    .update({
+      territory_enabled: settings.territoryEnabled,
+      crusade_enabled: settings.crusadeEnabled,
+    })
+    .eq("id", campaignId);
+  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------- system
@@ -363,14 +498,8 @@ export async function insertBattle(
   const supabase = getSupabase();
   const battleId = crypto.randomUUID();
 
-  const { participants, created } = await uploadArmyLists(
-    campaignId,
-    battleId,
-    myPlayerId,
-    input.participants,
-    imports
-  );
-
+  // The battle row must exist before army_lists rows can reference it
+  // (battle_id FK), so insert it first and patch participants afterwards.
   const { data, error } = await supabase
     .from("battles")
     .insert({
@@ -382,7 +511,7 @@ export async function insertBattle(
       mission: input.mission,
       fought_at: input.foughtAt,
       winner: input.winner,
-      participants,
+      participants: input.participants,
       notes: input.notes,
       score_mode: input.scoreMode,
       created_by: myPlayerId,
@@ -390,7 +519,28 @@ export async function insertBattle(
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return { battle: battleFromRow(data as BattleRow), armyLists: created };
+  let battle = battleFromRow(data as BattleRow);
+
+  const { participants, created } = await uploadArmyLists(
+    campaignId,
+    battleId,
+    myPlayerId,
+    input.participants,
+    imports
+  );
+
+  if (created.length > 0) {
+    const { data: patched, error: patchError } = await supabase
+      .from("battles")
+      .update({ participants })
+      .eq("id", battleId)
+      .select()
+      .single();
+    if (patchError) throw new Error(patchError.message);
+    battle = battleFromRow(patched as BattleRow);
+  }
+
+  return { battle, armyLists: created };
 }
 
 export async function updateBattleRow(
@@ -471,6 +621,147 @@ export async function updateBodyRow(
     .from("system_bodies")
     .update(patch)
     .eq("id", bodyId);
+  if (error) throw new Error(error.message);
+}
+
+/** Set (or clear, with "") the controlling faction of a body. Members only,
+ * enforced by the claim_body RPC. */
+export async function claimBody(
+  bodyId: string,
+  faction: string
+): Promise<void> {
+  const { error } = await getSupabase().rpc("claim_body", {
+    p_body_id: bodyId,
+    p_faction: faction,
+  });
+  if (error) throw new Error(error.message);
+}
+
+// ---------------------------------------------------------------- photos
+
+const PHOTO_BUCKET = "battle-photos";
+
+export async function uploadBattlePhoto(
+  campaignId: string,
+  battleId: string,
+  myPlayerId: string,
+  file: File
+): Promise<BattlePhoto> {
+  const supabase = getSupabase();
+  const photoId = crypto.randomUUID();
+  const storagePath = `${campaignId}/${battleId}/${photoId}-${file.name}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(PHOTO_BUCKET)
+    .upload(storagePath, file, { contentType: file.type || "image/jpeg" });
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data, error } = await supabase
+    .from("battle_photos")
+    .insert({
+      id: photoId,
+      campaign_id: campaignId,
+      battle_id: battleId,
+      storage_path: storagePath,
+      uploaded_by: myPlayerId,
+    })
+    .select()
+    .single();
+  if (error) {
+    await supabase.storage.from(PHOTO_BUCKET).remove([storagePath]);
+    throw new Error(error.message);
+  }
+  return photoFromRow(data as BattlePhotoRow);
+}
+
+export async function deleteBattlePhoto(photo: BattlePhoto): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from("battle_photos")
+    .delete()
+    .eq("id", photo.id);
+  if (error) throw new Error(error.message);
+  if (photo.storagePath) {
+    await supabase.storage.from(PHOTO_BUCKET).remove([photo.storagePath]);
+  }
+}
+
+/** Short-lived signed URL for viewing a stored photo. */
+export async function photoUrl(storagePath: string): Promise<string> {
+  const { data, error } = await getSupabase()
+    .storage.from(PHOTO_BUCKET)
+    .createSignedUrl(storagePath, 3600);
+  if (error || !data) throw new Error(error?.message ?? "No signed URL");
+  return data.signedUrl;
+}
+
+// ---------------------------------------------------------------- crusade
+
+export async function insertCrusadeForce(
+  campaignId: string,
+  playerId: string,
+  input: { name: string; faction: string; notes: string }
+): Promise<CrusadeForce> {
+  const { data, error } = await getSupabase()
+    .from("crusade_forces")
+    .insert({
+      campaign_id: campaignId,
+      player_id: playerId,
+      name: input.name,
+      faction: input.faction,
+      notes: input.notes,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return forceFromRow(data as CrusadeForceRow);
+}
+
+export async function deleteCrusadeForce(forceId: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("crusade_forces")
+    .delete()
+    .eq("id", forceId);
+  if (error) throw new Error(error.message);
+}
+
+export async function insertCrusadeUnit(
+  campaignId: string,
+  forceId: string,
+  input: Partial<CrusadeUnit> & { name: string }
+): Promise<CrusadeUnit> {
+  const { data, error } = await getSupabase()
+    .from("crusade_units")
+    .insert({
+      campaign_id: campaignId,
+      force_id: forceId,
+      ...unitToColumns(input),
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return unitFromRow(data as CrusadeUnitRow);
+}
+
+export async function updateCrusadeUnit(
+  unitId: string,
+  patch: Partial<CrusadeUnit>
+): Promise<CrusadeUnit> {
+  const { data, error } = await getSupabase()
+    .from("crusade_units")
+    .update(unitToColumns(patch))
+    .eq("id", unitId)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return unitFromRow(data as CrusadeUnitRow);
+}
+
+export async function deleteCrusadeUnit(unitId: string): Promise<void> {
+  const { error } = await getSupabase()
+    .from("crusade_units")
+    .delete()
+    .eq("id", unitId);
   if (error) throw new Error(error.message);
 }
 

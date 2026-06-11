@@ -30,6 +30,8 @@ interface SystemMapProps {
   battleCounts?: Record<string, number>;
   /** Bodies whose battles match the sidebar filter; pulsed gold on the map. */
   highlightedIds?: Set<string> | null;
+  /** When true, bodies render faction control rings. */
+  territoryEnabled?: boolean;
 }
 
 export function bodyPosition(body: Body): { x: number; y: number } {
@@ -41,7 +43,14 @@ export function bodyPosition(body: Body): { x: number; y: number } {
 
 export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
   function SystemMap(
-    { system, selectedBodyId, onSelectBody, battleCounts, highlightedIds },
+    {
+      system,
+      selectedBodyId,
+      onSelectBody,
+      battleCounts,
+      highlightedIds,
+      territoryEnabled,
+    },
     ref
   ) {
     const svgRef = useRef<SVGSVGElement>(null);
@@ -291,6 +300,7 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
               showLabel={showLabels}
               battleCount={battleCounts?.[planet.id] ?? 0}
               highlighted={highlightedIds?.has(planet.id) ?? false}
+              controlledBy={territoryEnabled ? planet.controlledBy : undefined}
             />
           ))}
 
@@ -303,6 +313,9 @@ export const SystemMap = forwardRef<SystemMapHandle, SystemMapProps>(
               showLabel={showLabels}
               battleCount={battleCounts?.[station.id] ?? 0}
               highlighted={highlightedIds?.has(station.id) ?? false}
+              controlledBy={
+                territoryEnabled ? station.controlledBy : undefined
+              }
             />
           ))}
         </g>

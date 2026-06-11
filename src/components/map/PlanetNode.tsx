@@ -1,6 +1,7 @@
 "use client";
 
 import type { Body } from "@/lib/types";
+import { factionColor } from "@/lib/factions";
 import { bodyPosition } from "./SystemMap";
 
 interface PlanetNodeProps {
@@ -13,6 +14,8 @@ interface PlanetNodeProps {
   battleCount: number;
   /** Pulsed when this body's battles match the sidebar filter. */
   highlighted?: boolean;
+  /** Faction holding this world (territory control), if any. */
+  controlledBy?: string;
 }
 
 export function PlanetNode({
@@ -24,6 +27,7 @@ export function PlanetNode({
   showLabel,
   battleCount,
   highlighted,
+  controlledBy,
 }: PlanetNodeProps) {
   const { x, y } = bodyPosition(planet);
   const r = planet.visual.sizePx;
@@ -48,6 +52,16 @@ export function PlanetNode({
           <stop offset="100%" stopColor="#000" stopOpacity="0.55" />
         </linearGradient>
       </defs>
+
+      {controlledBy && (
+        <circle
+          r={r + 4.5}
+          fill="none"
+          stroke={factionColor(controlledBy)}
+          strokeWidth={2}
+          strokeOpacity={0.85}
+        />
+      )}
 
       {highlighted && !selected && (
         <circle

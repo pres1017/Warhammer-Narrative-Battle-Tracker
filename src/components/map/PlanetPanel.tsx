@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Battle, Body, StarSystem } from "@/lib/types";
 import { CLASSIFICATION_INFO } from "@/lib/generator/tables";
+import { factionColor } from "@/lib/factions";
 
 interface PlanetPanelProps {
   system: StarSystem;
@@ -14,6 +15,11 @@ interface PlanetPanelProps {
     bodyId: string,
     patch: { name: string; blurb: string }
   ) => Promise<void>;
+  /** Territory control: shown when the campaign has it enabled. */
+  territoryEnabled?: boolean;
+  /** Known faction names, offered as suggestions when claiming. */
+  knownFactions?: string[];
+  onClaim?: (bodyId: string, faction: string) => Promise<void>;
   onClose: () => void;
   onSelectBattle?: (battleId: string) => void;
   onAddBattleHere?: (bodyId: string) => void;
@@ -33,6 +39,9 @@ export function PlanetPanel({
   battles,
   canEdit,
   onSaveBody,
+  territoryEnabled,
+  knownFactions,
+  onClaim,
   onClose,
   onSelectBattle,
   onAddBattleHere,
@@ -42,6 +51,9 @@ export function PlanetPanel({
   const [draftBlurb, setDraftBlurb] = useState("");
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimFaction, setClaimFaction] = useState("");
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   const battlesHere = battles.filter((b) => b.locationId === body.id);
   const parent = body.parentId
@@ -170,6 +182,87 @@ export function PlanetPanel({
             </p>
           )}
         </>
+      )}
+
+      {territoryEnabled && !editing && (
+        <div className="mt-3 rounded border border-border/70 bg-surface-raised/40 p-2">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
+              Controlled by
+            </span>
+            {body.controlledBy ? (
+              <span className="flex items-center gap-1.5 text-sm">
+                <span
+                  className="inline-block h-3 w-3 rounded-sm"
+                  style={{ background: factionColor(body.controlledBy) }}
+                />
+                {body.controlledBy}
+              </span>
+            ) : (
+              <span className="text-sm text-muted">No one — unclaimed</span>
+            )}
+            <span className="flex-1" />
+            {onClaim && !claiming && (
+              <button
+                onClick={() => {
+                  setClaimFaction(body.controlledBy ?? "");
+                  setClaimError(null);
+                  setClaiming(true);
+                }}
+                className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted hover:text-accent"
+              >
+                Change
+              </button>
+            )}
+          </div>
+          {claiming && onClaim && (
+            <form
+              className="mt-2 flex items-center gap-1"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setClaimError(null);
+                try {
+                  await onClaim(body.id, claimFaction.trim());
+                  setClaiming(false);
+                } catch (err) {
+                  setClaimError(
+                    err instanceof Error ? err.message : String(err)
+                  );
+                }
+              }}
+            >
+              <input
+                className="flex-1 rounded border border-border bg-surface-raised px-2 py-1 text-sm"
+                value={claimFaction}
+                onChange={(e) => setClaimFaction(e.target.value)}
+                list="known-factions"
+                placeholder="Faction (empty = unclaimed)"
+                autoFocus
+              />
+              <datalist id="known-factions">
+                {(knownFactions ?? []).map((f) => (
+                  <option key={f} value={f} />
+                ))}
+              </datalist>
+              <button
+                type="submit"
+                className="rounded border border-accent-dim px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-accent hover:bg-surface-raised"
+              >
+                Set
+              </button>
+              <button
+                type="button"
+                onClick={() => setClaiming(false)}
+                className="rounded border border-border px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted"
+              >
+                ✕
+              </button>
+            </form>
+          )}
+          {claimError && (
+            <p className="mt-1 text-sm text-danger">{claimError}</p>
+          )}
+        </div>
       )}
 
       <div className="mt-4 border-t border-border pt-3">

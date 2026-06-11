@@ -1,6 +1,7 @@
 "use client";
 
 import type { Body } from "@/lib/types";
+import { factionColor } from "@/lib/factions";
 import { bodyPosition } from "./SystemMap";
 
 interface StationGlyphProps {
@@ -11,6 +12,8 @@ interface StationGlyphProps {
   battleCount: number;
   /** Pulsed when this body's battles match the sidebar filter. */
   highlighted?: boolean;
+  /** Faction holding this body (territory control), if any. */
+  controlledBy?: string;
 }
 
 /** Free-floating station or point of interest (space hulk, rok, gate...). */
@@ -21,6 +24,7 @@ export function StationGlyph({
   showLabel,
   battleCount,
   highlighted,
+  controlledBy,
 }: StationGlyphProps) {
   const { x, y } = bodyPosition(body);
   const s = body.visual.sizePx;
@@ -35,6 +39,15 @@ export function StationGlyph({
         onSelect(body.id);
       }}
     >
+      {controlledBy && (
+        <circle
+          r={s + 4}
+          fill="none"
+          stroke={factionColor(controlledBy)}
+          strokeWidth={1.5}
+          strokeOpacity={0.85}
+        />
+      )}
       {highlighted && !selected && (
         <circle
           r={s + 9}

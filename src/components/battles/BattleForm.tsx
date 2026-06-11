@@ -11,6 +11,12 @@ import type { ArmyList } from "@/lib/rosters/types";
 import { ArmyImport } from "./ArmyImport";
 import { RosterView } from "./RosterView";
 
+/** Territory claim resolved from the battle's victor on save. */
+export interface BattleClaim {
+  bodyId: string;
+  faction: string;
+}
+
 interface BattleFormProps {
   system: StarSystem;
   /** Existing battle when editing; null when creating. */
@@ -19,7 +25,13 @@ interface BattleFormProps {
   armyLists: ArmyList[];
   /** Pre-selected location (e.g. "add battle here" from the map). */
   initialLocationId?: string | null;
-  onSave: (input: BattleInput, imports: ImportMap) => void;
+  /** Offers a "claim this world" checkbox when the campaign has territory. */
+  territoryEnabled?: boolean;
+  onSave: (
+    input: BattleInput,
+    imports: ImportMap,
+    claim: BattleClaim | null
+  ) => void;
   onCancel: () => void;
 }
 
@@ -44,6 +56,7 @@ export function BattleForm({
   battle,
   armyLists,
   initialLocationId,
+  territoryEnabled,
   onSave,
   onCancel,
 }: BattleFormProps) {
@@ -63,6 +76,7 @@ export function BattleForm({
   const [scoreMode, setScoreMode] = useState<ScoreMode>(
     battle?.scoreMode ?? "simple"
   );
+  const [claimForVictor, setClaimForVictor] = useState(true);
   const [imports, setImports] = useState<ImportMap>({});
 
   const namedBodies = system.bodies.filter((b) => b.kind !== "moon");
@@ -93,6 +107,23 @@ export function BattleForm({
     });
   }
 
+  /** The faction the victor fought for, best-effort from the winner text. */
+  function victorFaction(kept: Participant[]): string {
+    const w = winner.trim().toLowerCase();
+    if (!w) return "";
+    const byPlayer = kept.find(
+      (p) => p.playerName.trim().toLowerCase() === w && p.playerName.trim()
+    );
+    if (byPlayer?.faction.trim()) return byPlayer.faction.trim();
+    const byFaction = kept.find(
+      (p) => p.faction.trim().toLowerCase() === w && p.faction.trim()
+    );
+    if (byFaction) return byFaction.faction.trim();
+    return winner.trim();
+  }
+
+  const canClaim = Boolean(territoryEnabled && locationId && winner.trim());
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const kept = participants.filter(
@@ -102,6 +133,10 @@ export function BattleForm({
     for (const p of kept) {
       if (imports[p.key]) keptImports[p.key] = imports[p.key];
     }
+    const claim =
+      canClaim && claimForVictor
+        ? { bodyId: locationId, faction: victorFaction(kept) }
+        : null;
     onSave(
       {
         title: title.trim(),
@@ -113,7 +148,8 @@ export function BattleForm({
         participants: kept,
         scoreMode,
       },
-      keptImports
+      keptImports,
+      claim
     );
   }
 
@@ -342,6 +378,24 @@ export function BattleForm({
           placeholder="Faction or player who carried the day"
         />
       </label>
+
+      {canClaim && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={claimForVictor}
+            onChange={(e) => setClaimForVictor(e.target.checked)}
+            className="accent-[var(--accent)]"
+          />
+          <span>
+            Claim{" "}
+            <span className="text-accent">
+              {namedBodies.find((b) => b.id === locationId)?.name ?? "this world"}
+            </span>{" "}
+            for the victor
+          </span>
+        </label>
+      )}
 
       <label className="flex flex-col gap-1">
         <span className={labelCls}>Narrative Notes</span>

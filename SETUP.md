@@ -22,7 +22,7 @@ realtime sync.
    enable "Allow anonymous sign-ins".
 3. **Apply the schema**: Dashboard → SQL Editor → paste and run each file in
    [supabase/migrations/](supabase/migrations/) **in numeric order**
-   (`0001_…`, `0002_…`, `0003_…`). Together they create the tables,
+   (`0001_…` through `0004_…`). Together they create the tables,
    row-level-security policies, the `create_campaign` / `join_campaign`
    functions, optional name passwords, the `army-files` storage bucket, and
    realtime publications. When new migrations appear later, run only the new

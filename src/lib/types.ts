@@ -55,6 +55,8 @@ export interface Body {
   visual: BodyVisual;
   blurb: string;
   tags: string[];
+  /** Faction holding this body (territory control); empty/absent = nobody. */
+  controlledBy?: string;
 }
 
 export interface Star {
@@ -109,4 +111,53 @@ export interface Battle {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Admin-controlled per-campaign feature toggles. */
+export interface CampaignSettings {
+  territoryEnabled: boolean;
+  crusadeEnabled: boolean;
+}
+
+export const DEFAULT_SETTINGS: CampaignSettings = {
+  territoryEnabled: false,
+  crusadeEnabled: false,
+};
+
+/** A tabletop photo attached to a battle. Cloud keeps the file in Storage
+ * (storagePath); the offline campaign keeps it inline as base64. */
+export interface BattlePhoto {
+  id: string;
+  battleId: string;
+  caption: string;
+  storagePath?: string | null;
+  rawBase64?: string;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+/** A player's persistent Crusade order of battle. */
+export interface CrusadeForce {
+  id: string;
+  /** Player row id in cloud campaigns; null for the offline campaign. */
+  playerId: string | null;
+  name: string;
+  faction: string;
+  notes: string;
+  createdAt: string;
+}
+
+export interface CrusadeUnit {
+  id: string;
+  forceId: string;
+  name: string;
+  role: string;
+  points: number | null;
+  xp: number;
+  battlesPlayed: number;
+  unitsDestroyed: number;
+  honours: string[];
+  scars: string[];
+  notes: string;
+  createdAt: string;
 }

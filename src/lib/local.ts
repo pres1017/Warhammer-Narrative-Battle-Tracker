@@ -1,11 +1,19 @@
-import type { Battle, StarSystem } from "./types";
+import type {
+  Battle,
+  BattlePhoto,
+  CampaignSettings,
+  CrusadeForce,
+  CrusadeUnit,
+  StarSystem,
+} from "./types";
+import { DEFAULT_SETTINGS } from "./types";
 import type { ArmyList } from "./rosters/types";
 
 /**
  * Offline persistence: the "local" campaign in localStorage, exposed as an
  * external store for useSyncExternalStore. Cloud campaigns live in Supabase;
- * this shape mirrors what the DB holds (army lists keep rawBase64 here
- * instead of a Storage path).
+ * this shape mirrors what the DB holds (army lists and photos keep rawBase64
+ * here instead of a Storage path).
  */
 export interface LocalCampaign {
   name: string;
@@ -13,6 +21,10 @@ export interface LocalCampaign {
   systemLocked: boolean;
   battles: Battle[];
   armyLists: ArmyList[];
+  settings: CampaignSettings;
+  photos: BattlePhoto[];
+  crusadeForces: CrusadeForce[];
+  crusadeUnits: CrusadeUnit[];
 }
 
 const KEY = "wbm:local-campaign";
@@ -23,6 +35,10 @@ export const EMPTY_CAMPAIGN: LocalCampaign = {
   systemLocked: false,
   battles: [],
   armyLists: [],
+  settings: DEFAULT_SETTINGS,
+  photos: [],
+  crusadeForces: [],
+  crusadeUnits: [],
 };
 
 let cache: LocalCampaign | null = null;
@@ -55,7 +71,16 @@ export function getLocalCampaignServerSnapshot(): LocalCampaign {
 export function updateLocalCampaign(
   fn: (current: LocalCampaign) => LocalCampaign
 ): void {
-  cache = fn(getLocalCampaignSnapshot());
-  window.localStorage.setItem(KEY, JSON.stringify(cache));
+  const next = fn(getLocalCampaignSnapshot());
+  // Photos/army files can blow the ~5MB localStorage quota; fail loudly
+  // without corrupting the in-memory state.
+  try {
+    window.localStorage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    throw new Error(
+      "Browser storage is full — remove a photo or army list, or use a cloud campaign."
+    );
+  }
+  cache = next;
   for (const listener of listeners) listener();
 }

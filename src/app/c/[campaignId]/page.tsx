@@ -7,16 +7,22 @@ import { useCampaign } from "@/hooks/useCampaign";
 import { SystemMap, type SystemMapHandle } from "@/components/map/SystemMap";
 import { PlanetPanel } from "@/components/map/PlanetPanel";
 import { BattleSidebar } from "@/components/battles/BattleSidebar";
-import { BattleForm } from "@/components/battles/BattleForm";
+import { BattleForm, type BattleClaim } from "@/components/battles/BattleForm";
 import { BattleDetail } from "@/components/battles/BattleDetail";
 import { RosterPanel } from "@/components/players/RosterPanel";
+import { CampaignSettingsPanel } from "@/components/settings/CampaignSettingsPanel";
+import { StatsPanel } from "@/components/stats/StatsPanel";
+import { CrusadePanel } from "@/components/crusade/CrusadePanel";
 
 type Modal =
   | { kind: "none" }
   | { kind: "detail"; battleId: string }
   | { kind: "edit"; battleId: string }
   | { kind: "create"; locationId: string | null }
-  | { kind: "roster" };
+  | { kind: "roster" }
+  | { kind: "settings" }
+  | { kind: "stats" }
+  | { kind: "crusade" };
 
 export default function CampaignPage() {
   const router = useRouter();
@@ -53,6 +59,20 @@ export default function CampaignPage() {
     }
     return counts;
   }, [battles]);
+
+  // Faction names seen anywhere in the campaign, for claim suggestions.
+  const knownFactions = useMemo(() => {
+    const set = new Set<string>();
+    for (const battle of battles) {
+      for (const p of battle.participants) {
+        if (p.faction.trim()) set.add(p.faction.trim());
+      }
+    }
+    for (const body of system?.bodies ?? []) {
+      if (body.controlledBy?.trim()) set.add(body.controlledBy.trim());
+    }
+    return [...set].sort();
+  }, [battles, system]);
 
   if (campaign.status === "error") {
     return (
@@ -91,7 +111,11 @@ export default function CampaignPage() {
     }
   }
 
-  async function saveBattle(input: BattleInput, imports: ImportMap) {
+  async function saveBattle(
+    input: BattleInput,
+    imports: ImportMap,
+    claim: BattleClaim | null
+  ) {
     setSaveError(null);
     try {
       if (modal.kind === "edit") {
@@ -100,6 +124,9 @@ export default function CampaignPage() {
       } else if (modal.kind === "create") {
         const id = await campaign.addBattle(input, imports);
         setModal({ kind: "detail", battleId: id });
+      }
+      if (claim && claim.faction) {
+        await campaign.claimBody(claim.bodyId, claim.faction);
       }
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
@@ -134,6 +161,7 @@ export default function CampaignPage() {
           onSelectBody={setSelectedBodyId}
           battleCounts={battleCounts}
           highlightedIds={filterMatches}
+          territoryEnabled={campaign.settings.territoryEnabled}
         />
 
         {selectedBody && modal.kind === "none" && (
@@ -144,6 +172,9 @@ export default function CampaignPage() {
               battles={battles}
               canEdit={campaign.isMod}
               onSaveBody={(bodyId, patch) => campaign.updateBody(bodyId, patch)}
+              territoryEnabled={campaign.settings.territoryEnabled}
+              knownFactions={knownFactions}
+              onClaim={(bodyId, faction) => campaign.claimBody(bodyId, faction)}
               onClose={() => setSelectedBodyId(null)}
               onSelectBattle={openBattle}
               onAddBattleHere={(bodyId) =>
@@ -171,6 +202,33 @@ export default function CampaignPage() {
                 onRemove={(id) => void campaign.removePlayer(id)}
                 onClose={() => setModal({ kind: "none" })}
               />
+            ) : modal.kind === "settings" ? (
+              <CampaignSettingsPanel
+                settings={campaign.settings}
+                onSave={(settings) => campaign.updateSettings(settings)}
+                onClose={() => setModal({ kind: "none" })}
+              />
+            ) : modal.kind === "stats" ? (
+              <StatsPanel
+                battles={battles}
+                bodies={system.bodies}
+                territoryEnabled={campaign.settings.territoryEnabled}
+                onClose={() => setModal({ kind: "none" })}
+              />
+            ) : modal.kind === "crusade" ? (
+              <CrusadePanel
+                forces={campaign.crusadeForces}
+                units={campaign.crusadeUnits}
+                players={campaign.players}
+                armyLists={campaign.armyLists}
+                canEditForce={campaign.canEditForce}
+                onAddForce={campaign.addForce}
+                onDeleteForce={campaign.deleteForce}
+                onAddUnit={campaign.addUnit}
+                onUpdateUnit={campaign.updateUnit}
+                onDeleteUnit={campaign.deleteUnit}
+                onClose={() => setModal({ kind: "none" })}
+              />
             ) : modal.kind === "create" || modal.kind === "edit" ? (
               <div className="flex flex-col items-center gap-2">
                 {saveError && (
@@ -185,7 +243,10 @@ export default function CampaignPage() {
                   initialLocationId={
                     modal.kind === "create" ? modal.locationId : null
                   }
-                  onSave={(input, imports) => void saveBattle(input, imports)}
+                  territoryEnabled={campaign.settings.territoryEnabled}
+                  onSave={(input, imports, claim) =>
+                    void saveBattle(input, imports, claim)
+                  }
                   onCancel={() => {
                     setSaveError(null);
                     setModal({ kind: "none" });
@@ -199,6 +260,18 @@ export default function CampaignPage() {
                 armyLists={campaign.armyLists}
                 index={battles.findIndex((b) => b.id === modalBattle.id)}
                 canEdit={campaign.canEditBattle(modalBattle)}
+                photos={campaign.photos.filter(
+                  (p) => p.battleId === modalBattle.id
+                )}
+                canDeletePhoto={(photo) =>
+                  campaign.mode === "local" ||
+                  campaign.isMod ||
+                  (campaign.myPlayerId !== null &&
+                    photo.uploadedBy === campaign.myPlayerId)
+                }
+                onAddPhoto={(file) => campaign.addPhoto(modalBattle.id, file)}
+                onDeletePhoto={(photoId) => void campaign.deletePhoto(photoId)}
+                photoSrc={campaign.photoSrc}
                 onEdit={() =>
                   setModal({ kind: "edit", battleId: modalBattle.id })
                 }
@@ -239,15 +312,42 @@ export default function CampaignPage() {
         onMoveBattle={(id, idx) => void campaign.moveBattle(id, idx)}
         onFilterMatches={handleFilterMatches}
         headerExtra={
-          campaign.mode === "remote" ? (
+          <>
             <button
-              onClick={() => setModal({ kind: "roster" })}
-              title="Players and invite code"
+              onClick={() => setModal({ kind: "stats" })}
+              title="Campaign ledger — stats and standings"
               className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
             >
-              ☰ {campaign.players.length}
+              📜
             </button>
-          ) : null
+            {campaign.settings.crusadeEnabled && (
+              <button
+                onClick={() => setModal({ kind: "crusade" })}
+                title="Crusade forces"
+                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+              >
+                ⚔
+              </button>
+            )}
+            {campaign.mode === "remote" && (
+              <button
+                onClick={() => setModal({ kind: "roster" })}
+                title="Players and invite code"
+                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+              >
+                ☰ {campaign.players.length}
+              </button>
+            )}
+            {campaign.isAdmin && (
+              <button
+                onClick={() => setModal({ kind: "settings" })}
+                title="Campaign settings"
+                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+              >
+                ⚙
+              </button>
+            )}
+          </>
         }
       />
       )}
