@@ -33,7 +33,13 @@ export default function CampaignPage() {
   const [selectedBodyId, setSelectedBodyId] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>({ kind: "none" });
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Closed by default on phones, where the chronicle overlays the map.
+  // (Safe despite SSR: the map+sidebar UI only renders after client fetch.)
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () =>
+      typeof window === "undefined" ||
+      window.matchMedia("(min-width: 768px)").matches
+  );
   const [filterMatches, setFilterMatches] = useState<Set<string> | null>(null);
   const mapRef = useRef<SystemMapHandle>(null);
 
@@ -134,13 +140,13 @@ export default function CampaignPage() {
   }
 
   return (
-    <main className="flex h-dvh">
+    <main className="relative flex h-dvh overflow-hidden">
       <div className="relative min-w-0 flex-1">
-        <div className="pointer-events-none absolute left-4 top-4 z-10">
-          <h1 className="text-xl text-accent">
+        <div className="pointer-events-none absolute left-4 top-4 z-10 max-w-[calc(100%-7.5rem)]">
+          <h1 className="truncate text-lg text-accent sm:text-xl">
             {campaign.name || `${system.star.name} System`}
           </h1>
-          <p className="font-mono text-[11px] uppercase tracking-widest text-muted">
+          <p className="truncate font-mono text-[11px] uppercase tracking-widest text-muted">
             {system.star.name} · Seed {system.seed} · {battles.length} battle
             {battles.length === 1 ? "" : "s"} recorded
           </p>
@@ -149,7 +155,9 @@ export default function CampaignPage() {
         <button
           onClick={() => setSidebarOpen((open) => !open)}
           aria-label={sidebarOpen ? "Hide battle list" : "Show battle list"}
-          className="absolute right-4 top-4 z-10 rounded border border-border bg-surface/90 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+          className={`absolute right-4 top-4 z-10 rounded border border-border bg-surface/90 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent ${
+            sidebarOpen ? "hidden md:block" : ""
+          }`}
         >
           {sidebarOpen ? "Chronicle ▸" : "◂ Chronicle"}
         </button>
@@ -165,7 +173,7 @@ export default function CampaignPage() {
         />
 
         {selectedBody && modal.kind === "none" && (
-          <div className="pointer-events-none absolute right-4 top-14 z-10">
+          <div className="pointer-events-none absolute right-4 top-16 z-10 md:top-14">
             <PlanetPanel
               system={system}
               body={selectedBody}
@@ -298,58 +306,74 @@ export default function CampaignPage() {
       </div>
 
       {sidebarOpen && (
-      <BattleSidebar
-        battles={battles}
-        system={system}
-        selectedBattleId={
-          modal.kind === "detail" || modal.kind === "edit"
-            ? modal.battleId
-            : null
-        }
-        canReorder={campaign.canEditBattle}
-        onSelectBattle={openBattle}
-        onAddBattle={() => setModal({ kind: "create", locationId: null })}
-        onMoveBattle={(id, idx) => void campaign.moveBattle(id, idx)}
-        onFilterMatches={handleFilterMatches}
-        headerExtra={
-          <>
-            <button
-              onClick={() => setModal({ kind: "stats" })}
-              title="Campaign ledger — stats and standings"
-              className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
-            >
-              📜
-            </button>
-            {campaign.settings.crusadeEnabled && (
-              <button
-                onClick={() => setModal({ kind: "crusade" })}
-                title="Crusade forces"
-                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
-              >
-                ⚔
-              </button>
-            )}
-            {campaign.mode === "remote" && (
-              <button
-                onClick={() => setModal({ kind: "roster" })}
-                title="Players and invite code"
-                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
-              >
-                ☰ {campaign.players.length}
-              </button>
-            )}
-            {campaign.isAdmin && (
-              <button
-                onClick={() => setModal({ kind: "settings" })}
-                title="Campaign settings"
-                className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
-              >
-                ⚙
-              </button>
-            )}
-          </>
-        }
-      />
+        <>
+          {/* Mobile: tap the map area to dismiss the overlaid chronicle. */}
+          <div
+            className="absolute inset-0 z-20 bg-black/40 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="absolute inset-y-0 right-0 z-30 w-[min(20rem,88vw)] md:static md:z-auto md:w-80 md:shrink-0">
+            <BattleSidebar
+              battles={battles}
+              system={system}
+              selectedBattleId={
+                modal.kind === "detail" || modal.kind === "edit"
+                  ? modal.battleId
+                  : null
+              }
+              canReorder={campaign.canEditBattle}
+              onSelectBattle={openBattle}
+              onAddBattle={() => setModal({ kind: "create", locationId: null })}
+              onMoveBattle={(id, idx) => void campaign.moveBattle(id, idx)}
+              onFilterMatches={handleFilterMatches}
+              headerExtra={
+                <>
+                  <button
+                    onClick={() => setModal({ kind: "stats" })}
+                    title="Campaign ledger — stats and standings"
+                    className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+                  >
+                    📜
+                  </button>
+                  {campaign.settings.crusadeEnabled && (
+                    <button
+                      onClick={() => setModal({ kind: "crusade" })}
+                      title="Crusade forces"
+                      className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+                    >
+                      ⚔
+                    </button>
+                  )}
+                  {campaign.mode === "remote" && (
+                    <button
+                      onClick={() => setModal({ kind: "roster" })}
+                      title="Players and invite code"
+                      className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+                    >
+                      ☰ {campaign.players.length}
+                    </button>
+                  )}
+                  {campaign.isAdmin && (
+                    <button
+                      onClick={() => setModal({ kind: "settings" })}
+                      title="Campaign settings"
+                      className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent"
+                    >
+                      ⚙
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    aria-label="Close battle list"
+                    className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted hover:text-accent md:hidden"
+                  >
+                    ✕
+                  </button>
+                </>
+              }
+            />
+          </div>
+        </>
       )}
     </main>
   );

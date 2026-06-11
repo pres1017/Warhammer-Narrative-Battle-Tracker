@@ -230,9 +230,9 @@ export function BattleForm({
         </div>
         {participants.map((p, i) => (
           <div key={p.key} className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
-                className={inputCls}
+                className={`${inputCls} min-w-[7rem] flex-1`}
                 value={p.playerName}
                 onChange={(e) =>
                   setParticipant(p.key, { playerName: e.target.value })
@@ -240,7 +240,7 @@ export function BattleForm({
                 placeholder={`Player ${i + 1}`}
               />
               <input
-                className={inputCls}
+                className={`${inputCls} min-w-[7rem] flex-1`}
                 value={p.faction}
                 onChange={(e) =>
                   setParticipant(p.key, { faction: e.target.value })
@@ -248,7 +248,7 @@ export function BattleForm({
                 placeholder="Faction"
               />
               <input
-                className={`${inputCls} w-24`}
+                className={`${inputCls} w-20`}
                 type="number"
                 value={p.points ?? ""}
                 onChange={(e) =>
@@ -329,12 +329,12 @@ export function BattleForm({
               />
             </div>
           ) : (
-            <div key={p.key} className="flex items-center gap-2">
-              <span className="flex-1 truncate text-sm text-foreground/90">
+            <div key={p.key} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-[6rem] flex-1 truncate text-sm text-foreground/90">
                 {name}
               </span>
               <input
-                className={`${inputCls} w-24`}
+                className={`${inputCls} w-20 sm:w-24`}
                 type="number"
                 min={0}
                 value={p.vpPrimary ?? ""}
@@ -347,7 +347,7 @@ export function BattleForm({
                 placeholder="Primary"
               />
               <input
-                className={`${inputCls} w-24`}
+                className={`${inputCls} w-20 sm:w-24`}
                 type="number"
                 min={0}
                 value={p.vpSecondary ?? ""}

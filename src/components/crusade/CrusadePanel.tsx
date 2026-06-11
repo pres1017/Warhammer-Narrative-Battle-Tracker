@@ -226,9 +226,9 @@ function AddUnitRow({
 
   return (
     <div className="mt-2 flex flex-col gap-1">
-      <form onSubmit={add} className="flex items-center gap-1">
+      <form onSubmit={add} className="flex flex-wrap items-center gap-1">
         <input
-          className={`${inputCls} flex-1`}
+          className={`${inputCls} min-w-[8rem] flex-1`}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Add unit…"
@@ -358,7 +358,7 @@ export function CrusadePanel({
             key={force.id}
             className="rounded border border-border bg-surface/60 p-3"
           >
-            <div className="flex items-baseline gap-2">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
               {force.faction && (
                 <span
                   className="inline-block h-3 w-3 shrink-0 self-center rounded-sm"

@@ -104,7 +104,7 @@ export function BattleSidebar({
   const reorderDisabled = filter.trim().length > 0;
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-l border-border bg-surface/75 shadow-[inset_1px_0_0_rgba(201,162,39,0.06)] backdrop-blur-md">
+    <aside className="flex h-full w-full flex-col border-l border-border bg-surface/90 shadow-[inset_1px_0_0_rgba(201,162,39,0.06)] backdrop-blur-md md:bg-surface/75">
       <div className="border-b border-border p-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base text-accent">Battle Chronicle</h2>

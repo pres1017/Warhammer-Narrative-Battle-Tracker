@@ -31,7 +31,7 @@ function StatsTable({ rows }: { rows: CombatantStats[] }) {
           <th className="px-1 text-right font-normal">L</th>
           <th className="px-1 text-right font-normal">VP±</th>
           <th className="px-1 text-right font-normal">Pts</th>
-          <th className="w-1/4 pl-2 font-normal" aria-hidden />
+          <th className="hidden w-1/4 pl-2 font-normal sm:table-cell" aria-hidden />
         </tr>
       </thead>
       <tbody>
@@ -49,7 +49,7 @@ function StatsTable({ rows }: { rows: CombatantStats[] }) {
             <td className="px-1 text-right font-mono text-foreground">
               {r.campaignPoints}
             </td>
-            <td className="pl-2">
+            <td className="hidden pl-2 sm:table-cell">
               <div
                 className="h-2 rounded-sm bg-accent-dim/70"
                 style={{ width: `${(r.campaignPoints / maxPoints) * 100}%` }}

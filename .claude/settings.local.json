@@ -37,7 +37,10 @@
       "PowerShell(git push -u origin main)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx vitest run 2>&1 | Select-Object -Last 12; npx tsc --noEmit 2>&1 | Select-Object -First 30)",
       "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx eslint src --max-warnings 0 2>&1 | Select-Object -First 30)",
-      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm run build 2>&1 | Select-Object -Last 20)"
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npm run build 2>&1 | Select-Object -Last 20)",
+      "PowerShell(git commit -F \"C:\\\\Users\\\\phmal\\\\AppData\\\\Local\\\\Temp\\\\wbm-commit-msg.txt\")",
+      "PowerShell(git push)",
+      "PowerShell($env:Path = \"$env:LOCALAPPDATA\\\\Programs\\\\nodejs;$env:Path\"; npx vitest run 2>&1 | Select-Object -Last 5; npx tsc --noEmit 2>&1 | Select-Object -First 10; npx eslint src --max-warnings 0 2>&1 | Select-Object -First 10; npm run build 2>&1 | Select-Object -Last 5)"
     ]
   }
 }

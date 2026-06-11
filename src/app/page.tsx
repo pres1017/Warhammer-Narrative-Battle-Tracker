@@ -102,7 +102,7 @@ export default function Home() {
         <p className="font-mono text-xs uppercase tracking-[0.4em] text-muted">
           ✠ Administratum Cartographae ✠
         </p>
-        <h1 className="mt-4 bg-gradient-to-b from-[#f0d977] via-accent to-[#8a6d1a] bg-clip-text text-5xl font-bold text-transparent drop-shadow-[0_0_30px_rgba(201,162,39,0.25)] sm:text-6xl">
+        <h1 className="mt-4 bg-gradient-to-b from-[#f0d977] via-accent to-[#8a6d1a] bg-clip-text text-4xl font-bold text-transparent drop-shadow-[0_0_30px_rgba(201,162,39,0.25)] sm:text-6xl">
           Warhammer Battle Mapper
         </h1>
         <div

@@ -73,7 +73,7 @@ export default function SetupPage() {
 
   return (
     <main className="flex h-dvh flex-col lg:flex-row">
-      <div className="w-full overflow-y-auto p-4 lg:w-96 lg:shrink-0">
+      <div className="max-h-[55dvh] w-full overflow-y-auto p-4 lg:max-h-none lg:w-96 lg:shrink-0">
         {campaign.name && (
           <h1 className="mb-3 text-2xl text-accent">{campaign.name}</h1>
         )}

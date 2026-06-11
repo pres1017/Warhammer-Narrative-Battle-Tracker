@@ -89,7 +89,7 @@ export function PlanetPanel({
   }
 
   return (
-    <aside className="gothic-panel pointer-events-auto flex max-h-[70vh] w-80 flex-col overflow-y-auto rounded p-4">
+    <aside className="gothic-panel pointer-events-auto flex max-h-[60vh] w-[min(20rem,calc(100vw-2rem))] flex-col overflow-y-auto rounded p-4 md:max-h-[70vh]">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-lg text-accent">{body.name}</h3>
